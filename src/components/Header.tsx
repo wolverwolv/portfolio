@@ -7,17 +7,16 @@ const Header = () => {
   const [open, setOpen] = useState(false);
 
   const navItems = [
-    { title: "Who we are", href: "#about" },
-    { title: "What We Do", href: "#services" },
-    { title: "Our Work", href: "#work" },
-    { title: "Let's talk", href: "#contact" },
+    { title: "Services", href: "#services" },
+    { title: "Portfolio", href: "#work" },
+    { title: "Contact", href: "#contact" },
   ];
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-sm border-b border-border">
       <div className="container mx-auto px-6 py-4 flex justify-between items-center">
         <div className="text-2xl font-bold tracking-tight">
-          POISON.
+          MC.CONFIG
         </div>
 
         {/* Desktop Navigation */}

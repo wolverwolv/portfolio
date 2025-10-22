@@ -1,25 +1,25 @@
 const Services = () => {
   const services = [
     {
-      category: "Branding",
+      category: "Server Setup",
       items: [
-        "Visual Identity Design",
-        "Brand Strategy",
-        "Brand Development",
-        "Rebrands",
-        "Online Brand Presence",
-        "Audits and Design Studies",
+        "Custom Server Configuration",
+        "Performance Optimization",
+        "Plugin Installation & Setup",
+        "Mod Pack Configuration",
+        "World Generation & Management",
+        "Backup Systems & Recovery",
       ],
     },
     {
-      category: "Websites",
+      category: "Advanced Config",
       items: [
-        "Web Design",
-        "Custom Code",
-        "E-commerce",
-        "CMS Integration",
-        "UI System Design",
-        "Webflow Development",
+        "Permission Systems (LuckPerms)",
+        "Economy & Shop Setup",
+        "Custom Game Modes",
+        "Anti-Cheat Integration",
+        "Security & DDoS Protection",
+        "Database Configuration",
       ],
     },
   ];
@@ -28,7 +28,7 @@ const Services = () => {
     <section id="services" className="py-32 px-6">
       <div className="container mx-auto">
         <h2 className="text-6xl md:text-8xl font-bold mb-20">
-          What We Do
+          What I Do
         </h2>
         
         <div className="grid md:grid-cols-2 gap-16">

@@ -1,4 +1,4 @@
-import heroStatue from "@/assets/hero-statue.jpg";
+import minecraftHero from "@/assets/minecraft-hero.jpg";
 
 const Hero = () => {
   return (
@@ -6,9 +6,9 @@ const Hero = () => {
       {/* Background Image */}
       <div className="absolute inset-0 z-0">
         <img
-          src={heroStatue}
-          alt="Classical sculpture"
-          className="w-full h-full object-cover opacity-40"
+          src={minecraftHero}
+          alt="Minecraft server infrastructure"
+          className="w-full h-full object-cover opacity-30"
         />
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/20 to-background" />
       </div>
@@ -16,10 +16,10 @@ const Hero = () => {
       {/* Content */}
       <div className="relative z-10 text-center px-6 pt-20">
         <h1 className="text-[12vw] md:text-[10vw] font-bold tracking-tighter leading-none mb-8">
-          STUDIO
+          SERVER<br/>CONFIG
         </h1>
         <p className="max-w-3xl mx-auto text-lg md:text-xl text-muted-foreground leading-relaxed">
-          Poison Studio is a bold, ambitious design studio based in Manchester, UK that will help you leave your competitors in the dust and make them look like a bunch of amateurs. We bring bold, creative ideas to life in projects that always push boundaries and exceed expectations.
+          Expert Minecraft server configuration that will make other servers look amateur. I deliver high-performance, custom-configured servers that push technical boundaries and exceed player expectations. From vanilla to modded, from small communities to massive networks.
         </p>
       </div>
     </section>
