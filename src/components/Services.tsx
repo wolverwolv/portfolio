@@ -6,20 +6,23 @@ const Services = () => {
         "Custom Server Configuration",
         "Performance Optimization",
         "Plugin Installation & Setup",
-        "Mod Pack Configuration",
         "World Generation & Management",
         "Backup Systems & Recovery",
+        " ",
+        "And many more!",
       ],
     },
     {
-      category: "Advanced Config",
+      category: "Advanced Services",
       items: [
         "Permission Systems (LuckPerms)",
         "Economy & Shop Setup",
         "Custom Game Modes",
         "Anti-Cheat Integration",
-        "Security & DDoS Protection",
-        "Database Configuration",
+        "Mythic Mobs configuration",
+        "Simple Plugin development",
+        " ",
+        "And many more!",
       ],
     },
   ];
@@ -28,7 +31,7 @@ const Services = () => {
     <section id="services" className="py-32 px-6">
       <div className="container mx-auto">
         <h2 className="text-6xl md:text-8xl font-bold mb-20">
-          What I Do
+          What i do:
         </h2>
         
         <div className="grid md:grid-cols-2 gap-16">

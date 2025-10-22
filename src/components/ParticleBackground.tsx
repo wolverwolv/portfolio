@@ -38,7 +38,7 @@ const ParticleBackground = () => {
           vx: (Math.random() - 0.5) * 0.5,
           vy: (Math.random() - 0.5) * 0.5,
           size: Math.random() * 2 + 1,
-          opacity: Math.random() * 0.5 + 0.2,
+          opacity: Math.random() * 1 + 0.8,
         });
       }
     };
@@ -70,8 +70,8 @@ const ParticleBackground = () => {
             ctx.beginPath();
             ctx.moveTo(p1.x, p1.y);
             ctx.lineTo(p2.x, p2.y);
-            ctx.strokeStyle = `rgba(255, 255, 255, ${0.1 * (1 - distance / 150)})`;
-            ctx.lineWidth = 0.5;
+            ctx.strokeStyle = `rgba(200, 180, 255, ${0.1 * (1 - distance / 170)})`;
+            ctx.lineWidth = 1.4;
             ctx.stroke();
           }
         });

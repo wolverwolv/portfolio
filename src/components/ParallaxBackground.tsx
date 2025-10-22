@@ -1,96 +1,88 @@
-import { useState, useEffect } from "react";
+import { useEffect, useRef } from "react";
 import bgLayerFar from "@/assets/bg-layer-far.jpg";
+import bgLayerMidFar from "@/assets/bg-layer-mid-far.jpg";
 import bgLayerMid from "@/assets/bg-layer-mid.jpg";
+import bgLayerMidNear from "@/assets/bg-layer-mid-near.jpg";
 import bgLayerNear from "@/assets/bg-layer-near.jpg";
-
-interface MousePosition {
-  x: number;
-  y: number;
-}
+import bgLayerFront from "@/assets/bg-layer-front.jpg";
 
 const ParallaxBackground = () => {
-  const [mousePosition, setMousePosition] = useState<MousePosition>({ x: 0, y: 0 });
-  const [smoothPosition, setSmoothPosition] = useState<MousePosition>({ x: 0, y: 0 });
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mouse = useRef({ x: 0, y: 0 });
+  const smooth = useRef({ x: 0, y: 0 });
+
+  const layers = [
+    { src: bgLayerFar, depth: 4, scale: 1.02, opacity: 0.25 },
+    { src: bgLayerMidFar, depth: 8, scale: 1.05, opacity: 1 },
+    { src: bgLayerMid, depth: 12, scale: 1.08, opacity: 0.45 },
+    { src: bgLayerMidNear, depth: 18, scale: 1.12, opacity: 0.55 },
+    { src: bgLayerNear, depth: 25, scale: 1.18, opacity: 0.65 },
+    { src: bgLayerFront, depth: 35, scale: 1.25, opacity: 0.75 },
+  ];
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      const x = (e.clientX / window.innerWidth - 0.5) * 2;
-      const y = (e.clientY / window.innerHeight - 0.5) * 2;
-      setMousePosition({ x, y });
+      mouse.current.x = (e.clientX / window.innerWidth - 0.5) * 2;
+      mouse.current.y = (e.clientY / window.innerHeight - 0.5) * 2;
     };
-
     window.addEventListener("mousemove", handleMouseMove);
-    return () => window.removeEventListener("mousemove", handleMouseMove);
-  }, []);
 
-  // Smooth interpolation for professional feel
-  useEffect(() => {
-    const lerp = (start: number, end: number, factor: number) => {
-      return start + (end - start) * factor;
-    };
+    const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
     const animate = () => {
-      setSmoothPosition((prev) => ({
-        x: lerp(prev.x, mousePosition.x, 0.05),
-        y: lerp(prev.y, mousePosition.y, 0.05),
-      }));
+      smooth.current.x = lerp(smooth.current.x, mouse.current.x, 0.05);
+      smooth.current.y = lerp(smooth.current.y, mouse.current.y, 0.05);
+
+      const container = containerRef.current;
+      if (container) {
+        const layerEls = container.querySelectorAll<HTMLDivElement>(".layer");
+        layerEls.forEach((el, i) => {
+          const { depth, scale } = layers[i];
+          el.style.transform = `translate3d(${smooth.current.x * depth}px, ${
+            smooth.current.y * depth
+          }px, 0) scale(${scale})`;
+        });
+      }
+
       requestAnimationFrame(animate);
     };
 
-    const animationId = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(animationId);
-  }, [mousePosition]);
+    const id = requestAnimationFrame(animate);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      cancelAnimationFrame(id);
+    };
+  }, []);
 
   return (
-    <>
-      {/* Far Background Layer - slowest movement */}
-      <div
-        className="absolute inset-0 z-0"
-        style={{
-          transform: `translate(${smoothPosition.x * 5}px, ${smoothPosition.y * 5}px) scale(1.1)`,
-          transition: "transform 0.1s ease-out",
-        }}
-      >
-        <img
-          src={bgLayerFar}
-          alt="Background layer"
-          className="w-full h-full object-cover opacity-30"
-        />
-      </div>
+    <div ref={containerRef} className="absolute inset-0 overflow-hidden">
+      {/* 6 Parallax Layers */}
+      {layers.map((layer, i) => (
+        <div
+          key={i}
+          className="layer absolute inset-0 will-change-transform"
+          style={{
+            zIndex: i,
+            transform: `scale(${layer.scale})`,
+          }}
+        >
+          <img
+            src={layer.src}
+            alt={`Layer ${i}`}
+            className="w-full h-full object-cover select-none"
+            style={{ opacity: layer.opacity }}
+            draggable={false}
+          />
+        </div>
+      ))}
 
-      {/* Middle Layer - medium movement */}
-      <div
-        className="absolute inset-0 z-[1]"
-        style={{
-          transform: `translate(${smoothPosition.x * 15}px, ${smoothPosition.y * 15}px) scale(1.15)`,
-          transition: "transform 0.1s ease-out",
-        }}
-      >
-        <img
-          src={bgLayerMid}
-          alt="Middle layer"
-          className="w-full h-full object-cover opacity-40"
-        />
+      {/* 🌑 Cinematic dark vignette */}
+      <div className="absolute inset-0 z-[10] pointer-events-none">
+        <div className="absolute top-0 left-0 right-0 h-1/3 bg-gradient-to-b from-black/100 via-black/40 to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 h-1/3 bg-gradient-to-t from-black/100 via-black/60 to-transparent" />
+        <div className="absolute inset-0 bg-black/25" />
       </div>
-
-      {/* Near Layer - fastest movement */}
-      <div
-        className="absolute inset-0 z-[2]"
-        style={{
-          transform: `translate(${smoothPosition.x * 30}px, ${smoothPosition.y * 30}px) scale(1.2)`,
-          transition: "transform 0.1s ease-out",
-        }}
-      >
-        <img
-          src={bgLayerNear}
-          alt="Foreground layer"
-          className="w-full h-full object-cover opacity-20"
-        />
-      </div>
-
-      {/* Gradient Overlay */}
-      <div className="absolute inset-0 z-[3] bg-gradient-to-b from-transparent via-background/30 to-background pointer-events-none" />
-    </>
+    </div>
   );
 };
 
