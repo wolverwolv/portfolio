@@ -1,4 +1,4 @@
-import minecraftHero from "@/assets/minecraft-hero.jpg";
+import minecraftBg from "@/assets/minecraft-bg.jpg";
 
 const Hero = () => {
   return (
@@ -6,9 +6,9 @@ const Hero = () => {
       {/* Background Image */}
       <div className="absolute inset-0 z-0">
         <img
-          src={minecraftHero}
-          alt="Minecraft server infrastructure"
-          className="w-full h-full object-cover opacity-30"
+          src={minecraftBg}
+          alt="Minecraft server world"
+          className="w-full h-full object-cover opacity-40"
         />
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/20 to-background" />
       </div>
