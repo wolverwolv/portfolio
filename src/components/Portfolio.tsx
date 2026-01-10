@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from "framer-motion";
 import { X, Sparkles, ExternalLink } from "lucide-react";
 
@@ -20,6 +20,7 @@ import mm3 from "@/assets/mm3.png";
 import plug from "@/assets/plug.png";
 import s1 from "@/assets/setup.png";
 import s2 from "@/assets/setup1.png";
+import { API_URL } from "@/config";
 
 interface Project {
   title: string;
@@ -195,7 +196,15 @@ const TiltCard = ({
 };
 
 const Portfolio = () => {
-  const projects: Project[] = [
+  const initialProjects: Project[] = [
+    {
+      title: "Christmas Event",
+      type: "Custom Lifesteal Server",
+      description:
+        "LifeSteal setup with economy, custom islands, and 200+ plugins.",
+      stats: ["99.9% Uptime", "Custom Plugins"],
+      images: [halo1, halo2, halo3, halo4],
+    },
     {
       title: "HaloFlux Network",
       type: "Custom Lifesteal Server",
@@ -237,7 +246,7 @@ const Portfolio = () => {
       images: [s1, s2],
     },
     {
-      title: "Custom Plugins",
+      title: "Custom Plugin",
       type: "Custom Plugin Development",
       description:
         "Custom made observation haki plugin(Fiction themed)",
@@ -245,14 +254,31 @@ const Portfolio = () => {
       images: [plug],
     },
     {
-      title: "MythicMobs configurations",
+      title: "MythicMobs interactable shell",
       type: "Custom entities",
       description:
         "Configuring custom mobs/entites for your server",
       stats: ["bosses", "npcs", "mobs"],
-      images: [mm, mm2, mm3],
+      images: [mm],
     },
   ];
+
+  const [projects, setProjects] = useState<Project[]>(initialProjects);
+
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/projects`);
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setProjects([...data, ...initialProjects]);
+        }
+      } catch (error) {
+        console.error("Failed to fetch projects:", error);
+      }
+    };
+    fetchProjects();
+  }, []);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);

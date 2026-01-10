@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
+import { motion } from "framer-motion";
 
 const Contact = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -8,10 +9,16 @@ const Contact = () => {
   return (
     <section id="contact" className="py-32 px-6">
       <div className="container mx-auto text-center">
-        <h2 className="text-6xl md:text-8xl font-bold mb-8">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          whileInView={{ opacity: 1, scale: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+        >
+          <h2 className="text-6xl md:text-8xl font-bold mb-8">
           Let's Build<br />Your Server
-        </h2>
-        <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-12">
+          </h2>
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-12">
           Ready to create the ultimate Minecraft server experience? Let's discuss your vision and make it reality.{" "}
           <a
             href="https://discord.com/channels/915849624718299166/991478519337066556/1426817639350665309"
@@ -21,15 +28,16 @@ const Contact = () => {
           >
             Order through Arcane Studios
           </a>
-        </p>
+          </p>
 
-        <Button
+          <Button
           size="lg"
           className="bg-accent text-accent-foreground hover:bg-accent/90 text-lg px-12 py-6 h-auto"
           onClick={() => setIsOpen(true)}
-        >
+          >
           Get In Touch
-        </Button>
+          </Button>
+        </motion.div>
 
         {/* Popup Modal */}
         {isOpen && (
