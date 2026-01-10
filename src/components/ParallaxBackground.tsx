@@ -10,37 +10,63 @@ const ParallaxBackground = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const mouse = useRef({ x: 0, y: 0 });
   const smooth = useRef({ x: 0, y: 0 });
+  const velocity = useRef({ x: 0, y: 0 });
 
   const layers = [
-    { src: bgLayerFar, depth: 4, scale: 1.02, opacity: 0.25 },
-    { src: bgLayerMidFar, depth: 8, scale: 1.05, opacity: 1 },
-    { src: bgLayerMid, depth: 12, scale: 1.08, opacity: 0.45 },
-    { src: bgLayerMidNear, depth: 18, scale: 1.12, opacity: 0.55 },
-    { src: bgLayerNear, depth: 25, scale: 1.18, opacity: 0.65 },
-    { src: bgLayerFront, depth: 35, scale: 1.25, opacity: 0.75 },
+    { src: bgLayerFar, depth: 6, scale: 1.03, opacity: 0.3, blur: 2 },
+    { src: bgLayerMidFar, depth: 12, scale: 1.06, opacity: 1, blur: 1 },
+    { src: bgLayerMid, depth: 18, scale: 1.09, opacity: 0.5, blur: 0.5 },
+    { src: bgLayerMidNear, depth: 26, scale: 1.14, opacity: 0.6, blur: 0 },
+    { src: bgLayerNear, depth: 36, scale: 1.2, opacity: 0.7, blur: 0 },
+    { src: bgLayerFront, depth: 48, scale: 1.28, opacity: 0.8, blur: 0 },
   ];
 
   useEffect(() => {
+    let lastTime = performance.now();
+    
     const handleMouseMove = (e: MouseEvent) => {
-      mouse.current.x = (e.clientX / window.innerWidth - 0.5) * 2;
-      mouse.current.y = (e.clientY / window.innerHeight - 0.5) * 2;
+      const newX = (e.clientX / window.innerWidth - 0.5) * 2;
+      const newY = (e.clientY / window.innerHeight - 0.5) * 2;
+      
+      // Calculate velocity for momentum
+      velocity.current.x = newX - mouse.current.x;
+      velocity.current.y = newY - mouse.current.y;
+      
+      mouse.current.x = newX;
+      mouse.current.y = newY;
     };
-    window.addEventListener("mousemove", handleMouseMove);
+    
+    window.addEventListener("mousemove", handleMouseMove, { passive: true });
 
-    const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+    // Exponential smoothing with variable speed
+    const smoothStep = (current: number, target: number, velocity: number, deltaTime: number) => {
+      const speed = 0.03 + Math.abs(velocity) * 0.5;
+      const factor = 1 - Math.pow(1 - speed, deltaTime / 16);
+      return current + (target - current) * factor;
+    };
 
-    const animate = () => {
-      smooth.current.x = lerp(smooth.current.x, mouse.current.x, 0.05);
-      smooth.current.y = lerp(smooth.current.y, mouse.current.y, 0.05);
+    const animate = (time: number) => {
+      const deltaTime = Math.min(time - lastTime, 50);
+      lastTime = time;
+
+      smooth.current.x = smoothStep(smooth.current.x, mouse.current.x, velocity.current.x, deltaTime);
+      smooth.current.y = smoothStep(smooth.current.y, mouse.current.y, velocity.current.y, deltaTime);
+
+      // Decay velocity
+      velocity.current.x *= 0.95;
+      velocity.current.y *= 0.95;
 
       const container = containerRef.current;
       if (container) {
         const layerEls = container.querySelectorAll<HTMLDivElement>(".layer");
         layerEls.forEach((el, i) => {
           const { depth, scale } = layers[i];
-          el.style.transform = `translate3d(${smooth.current.x * depth}px, ${
-            smooth.current.y * depth
-          }px, 0) scale(${scale})`;
+          const x = smooth.current.x * depth;
+          const y = smooth.current.y * depth;
+          // Subtle rotation based on movement
+          const rotate = smooth.current.x * (i * 0.15);
+          
+          el.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${scale}) rotate(${rotate}deg)`;
         });
       }
 
