@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, ChevronRight, X, Sparkles } from "lucide-react";
+import { useState, useRef } from "react";
+import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from "framer-motion";
+import { X, Sparkles, ExternalLink } from "lucide-react";
 
 // Import images
 import halo1 from "@/assets/halo1.png";
@@ -28,6 +28,171 @@ interface Project {
   stats: string[];
   images?: string[];
 }
+
+// 3D Tilt Card Component
+const TiltCard = ({ 
+  project, 
+  onClick 
+}: { 
+  project: Project; 
+  onClick: () => void;
+}) => {
+  const cardRef = useRef<HTMLDivElement>(null);
+  
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  
+  const mouseXSpring = useSpring(x, { stiffness: 150, damping: 15 });
+  const mouseYSpring = useSpring(y, { stiffness: 150, damping: 15 });
+  
+  const rotateX = useTransform(mouseYSpring, [-0.5, 0.5], ["12deg", "-12deg"]);
+  const rotateY = useTransform(mouseXSpring, [-0.5, 0.5], ["-12deg", "12deg"]);
+  const brightness = useTransform(mouseXSpring, [-0.5, 0, 0.5], [0.9, 1, 1.1]);
+  
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!cardRef.current) return;
+    
+    const rect = cardRef.current.getBoundingClientRect();
+    const width = rect.width;
+    const height = rect.height;
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    
+    const xPct = mouseX / width - 0.5;
+    const yPct = mouseY / height - 0.5;
+    
+    x.set(xPct);
+    y.set(yPct);
+  };
+  
+  const handleMouseLeave = () => {
+    x.set(0);
+    y.set(0);
+  };
+
+  return (
+    <motion.div
+      ref={cardRef}
+      className="relative group cursor-pointer"
+      style={{
+        perspective: 1000,
+        transformStyle: "preserve-3d",
+      }}
+      initial={{ opacity: 0, y: 40 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-50px" }}
+      transition={{ duration: 0.5, ease: "easeOut" }}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      onClick={onClick}
+    >
+      <motion.div
+        className="relative h-full bg-gradient-to-br from-card via-card to-card/80 border border-border/40 rounded-2xl overflow-hidden"
+        style={{
+          rotateX,
+          rotateY,
+          transformStyle: "preserve-3d",
+          filter: useTransform(brightness, (b) => `brightness(${b})`),
+        }}
+        whileHover={{ scale: 1.02 }}
+        transition={{ duration: 0.2 }}
+      >
+        {/* Shine effect */}
+        <motion.div
+          className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+          style={{
+            background: useTransform(
+              [mouseXSpring, mouseYSpring],
+              ([latestX, latestY]) => 
+                `radial-gradient(600px circle at ${(Number(latestX) + 0.5) * 100}% ${(Number(latestY) + 0.5) * 100}%, rgba(255,255,255,0.1), transparent 40%)`
+            ),
+          }}
+        />
+        
+        {/* Border glow */}
+        <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none border-2 border-accent/30" />
+        
+        {/* Image */}
+        <div className="relative h-48 overflow-hidden">
+          {project.images && project.images[0] && (
+            <motion.img
+              src={project.images[0]}
+              alt={project.title}
+              className="w-full h-full object-cover"
+              style={{ transformStyle: "preserve-3d", translateZ: 20 }}
+              whileHover={{ scale: 1.1 }}
+              transition={{ duration: 0.4 }}
+            />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-card via-card/20 to-transparent" />
+          
+          {/* Floating badge */}
+          <motion.span 
+            className="absolute top-3 left-3 text-xs font-semibold text-accent bg-background/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-accent/20"
+            style={{ translateZ: 40 }}
+          >
+            {project.type}
+          </motion.span>
+          
+          {/* View icon */}
+          <motion.div
+            className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-300"
+            style={{ translateZ: 50 }}
+          >
+            <div className="p-2 bg-accent/90 rounded-full text-accent-foreground">
+              <ExternalLink size={14} />
+            </div>
+          </motion.div>
+        </div>
+        
+        {/* Content */}
+        <div className="p-5" style={{ transformStyle: "preserve-3d" }}>
+          <motion.h3 
+            className="text-xl font-bold mb-2 group-hover:text-accent transition-colors duration-300"
+            style={{ translateZ: 30 }}
+          >
+            {project.title}
+          </motion.h3>
+          
+          <motion.p 
+            className="text-muted-foreground text-sm leading-relaxed mb-4 line-clamp-2"
+            style={{ translateZ: 20 }}
+          >
+            {project.description}
+          </motion.p>
+          
+          {/* Stats */}
+          <motion.div 
+            className="flex flex-wrap gap-2"
+            style={{ translateZ: 25 }}
+          >
+            {project.stats.slice(0, 2).map((stat) => (
+              <span
+                key={stat}
+                className="text-xs px-3 py-1 bg-background/60 border border-border/50 rounded-full text-muted-foreground"
+              >
+                {stat}
+              </span>
+            ))}
+          </motion.div>
+          
+          {/* Image count indicator */}
+          {project.images && project.images.length > 1 && (
+            <motion.div 
+              className="absolute bottom-4 right-4 text-xs text-muted-foreground/60"
+              style={{ translateZ: 20 }}
+            >
+              +{project.images.length - 1} more
+            </motion.div>
+          )}
+        </div>
+        
+        {/* Bottom accent line */}
+        <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-accent/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+      </motion.div>
+    </motion.div>
+  );
+};
 
 const Portfolio = () => {
   const projects: Project[] = [
@@ -89,87 +254,12 @@ const Portfolio = () => {
     },
   ];
 
-  const [index, setIndex] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
-  const [direction, setDirection] = useState(1);
-  const [isPaused, setIsPaused] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
-  const nextSlide = useCallback(() => {
-    setDirection(1);
-    setIndex((prev) => (prev + 1) % projects.length);
-  }, [projects.length]);
-
-  const prevSlide = useCallback(() => {
-    setDirection(-1);
-    setIndex((prev) => (prev - 1 + projects.length) % projects.length);
-  }, [projects.length]);
-
-  // Auto-slide with pause on hover
-  useEffect(() => {
-    if (isPaused || modalOpen) return;
-    const timer = setInterval(nextSlide, 5000);
-    return () => clearInterval(timer);
-  }, [isPaused, modalOpen, nextSlide]);
-
-  const slideVariants = {
-    enter: (dir: number) => ({
-      x: dir > 0 ? 400 : -400,
-      opacity: 0,
-      scale: 0.9,
-      rotateY: dir > 0 ? 15 : -15,
-    }),
-    center: {
-      x: 0,
-      opacity: 1,
-      scale: 1,
-      rotateY: 0,
-      transition: {
-        duration: 0.5,
-        ease: [0.25, 0.46, 0.45, 0.94] as const,
-      },
-    },
-    exit: (dir: number) => ({
-      x: dir > 0 ? -400 : 400,
-      opacity: 0,
-      scale: 0.9,
-      rotateY: dir > 0 ? -15 : 15,
-      transition: {
-        duration: 0.4,
-        ease: [0.25, 0.46, 0.45, 0.94] as const,
-      },
-    }),
-  };
-
-  const staggerContainer = {
-    center: {
-      transition: {
-        staggerChildren: 0.08,
-        delayChildren: 0.2,
-      },
-    },
-  };
-
-  const fadeUp = {
-    enter: { opacity: 0, y: 20 },
-    center: { 
-      opacity: 1, 
-      y: 0,
-      transition: { duration: 0.4, ease: "easeOut" as const }
-    },
-  };
-
-  const imageVariants = {
-    enter: { opacity: 0, scale: 0.8, y: 20 },
-    center: (i: number) => ({
-      opacity: 1,
-      scale: 1,
-      y: 0,
-      transition: {
-        delay: 0.3 + i * 0.1,
-        duration: 0.4,
-        ease: [0.25, 0.46, 0.45, 0.94] as const,
-      },
-    }),
+  const openModal = (project: Project) => {
+    setSelectedProject(project);
+    setModalOpen(true);
   };
 
   return (
@@ -178,158 +268,41 @@ const Portfolio = () => {
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-20 left-10 w-72 h-72 bg-accent/5 rounded-full blur-3xl" />
         <div className="absolute bottom-20 right-10 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-accent/3 rounded-full blur-3xl" />
       </div>
 
-      <div className="container mx-auto text-center relative z-10">
+      <div className="container mx-auto relative z-10">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="mb-16"
+          className="text-center mb-16"
         >
           <span className="inline-flex items-center gap-2 text-accent text-sm font-medium mb-4 tracking-wider uppercase">
             <Sparkles size={16} />
             Portfolio
           </span>
-          <h2 className="text-6xl md:text-8xl font-bold bg-gradient-to-r from-foreground via-foreground to-muted-foreground bg-clip-text">
+          <h2 className="text-6xl md:text-8xl font-bold">
             Recent Work
           </h2>
         </motion.div>
 
-        {/* Progress dots */}
-        <div className="flex justify-center gap-2 mb-8">
-          {projects.map((_, i) => (
-            <button
-              key={i}
-              onClick={() => {
-                setDirection(i > index ? 1 : -1);
-                setIndex(i);
-              }}
-              className="group relative p-1"
-            >
-              <div className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                i === index 
-                  ? "bg-accent scale-125" 
-                  : "bg-muted-foreground/30 group-hover:bg-muted-foreground/50"
-              }`} />
-              {i === index && (
-                <motion.div
-                  layoutId="activeDot"
-                  className="absolute inset-0 border-2 border-accent/50 rounded-full"
-                  initial={false}
-                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                />
-              )}
-            </button>
+        {/* Cards Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+          {projects.map((project, index) => (
+            <TiltCard
+              key={project.title}
+              project={project}
+              onClick={() => openModal(project)}
+            />
           ))}
         </div>
-
-        {/* Slideshow */}
-        <div 
-          className="relative w-full max-w-5xl mx-auto h-[520px] perspective-1000"
-          onMouseEnter={() => setIsPaused(true)}
-          onMouseLeave={() => setIsPaused(false)}
-        >
-          <AnimatePresence mode="wait" custom={direction}>
-            <motion.div
-              key={index}
-              custom={direction}
-              variants={{ ...slideVariants, ...staggerContainer }}
-              initial="enter"
-              animate="center"
-              exit="exit"
-              className="absolute inset-0 bg-gradient-to-br from-card to-card/80 border border-border/50 rounded-3xl p-8 shadow-2xl flex flex-col justify-between cursor-pointer group backdrop-blur-sm"
-              onClick={() => setModalOpen(true)}
-              style={{ transformStyle: "preserve-3d" }}
-            >
-              {/* Glow effect on hover */}
-              <div className="absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none bg-gradient-to-br from-accent/10 via-transparent to-primary/10" />
-              
-              <motion.div variants={fadeUp}>
-                <span className="inline-block text-sm text-accent font-semibold tracking-wide uppercase mb-2 px-3 py-1 bg-accent/10 rounded-full">
-                  {projects[index].type}
-                </span>
-                <h3 className="text-4xl md:text-5xl font-bold mb-3 group-hover:text-accent transition-colors duration-300">
-                  {projects[index].title}
-                </h3>
-                <p className="text-muted-foreground leading-relaxed text-lg max-w-2xl mx-auto">
-                  {projects[index].description}
-                </p>
-              </motion.div>
-
-              {projects[index].images && (
-                <div className="flex flex-wrap gap-3 justify-center mt-6">
-                  {projects[index].images.map((img, i) => (
-                    <motion.div
-                      key={i}
-                      custom={i}
-                      variants={imageVariants}
-                      initial="enter"
-                      animate="center"
-                      className="relative group/img overflow-hidden rounded-xl"
-                    >
-                      <img
-                        src={img}
-                        alt={`${projects[index].title} preview ${i + 1}`}
-                        className="w-28 sm:w-36 md:w-44 h-28 sm:h-36 md:h-44 object-cover border border-border/50 rounded-xl shadow-lg transition-all duration-300 group-hover/img:scale-110 group-hover/img:border-accent/50"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover/img:opacity-100 transition-opacity duration-300 rounded-xl" />
-                    </motion.div>
-                  ))}
-                </div>
-              )}
-
-              <motion.div variants={fadeUp} className="flex flex-wrap justify-center gap-3 mt-6">
-                {projects[index].stats.map((stat, i) => (
-                  <motion.span
-                    key={stat}
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.5 + i * 0.1 }}
-                    className="px-4 py-2 bg-background/50 border border-border/50 text-sm rounded-full backdrop-blur-sm hover:border-accent/50 hover:bg-accent/5 transition-all duration-300"
-                  >
-                    {stat}
-                  </motion.span>
-                ))}
-              </motion.div>
-            </motion.div>
-          </AnimatePresence>
-
-          {/* Navigation Arrows */}
-          <motion.button
-            onClick={prevSlide}
-            whileHover={{ scale: 1.1, x: -4 }}
-            whileTap={{ scale: 0.95 }}
-            className="absolute -left-6 md:-left-12 top-1/2 -translate-y-1/2 text-foreground bg-card/90 backdrop-blur-md rounded-full p-3 md:p-4 hover:bg-accent hover:text-accent-foreground transition-colors shadow-xl border border-border/50"
-          >
-            <ChevronLeft size={28} />
-          </motion.button>
-
-          <motion.button
-            onClick={nextSlide}
-            whileHover={{ scale: 1.1, x: 4 }}
-            whileTap={{ scale: 0.95 }}
-            className="absolute -right-6 md:-right-12 top-1/2 -translate-y-1/2 text-foreground bg-card/90 backdrop-blur-md rounded-full p-3 md:p-4 hover:bg-accent hover:text-accent-foreground transition-colors shadow-xl border border-border/50"
-          >
-            <ChevronRight size={28} />
-          </motion.button>
-        </div>
-
-        {/* Click hint */}
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1 }}
-          className="text-muted-foreground/60 text-sm mt-6"
-        >
-          Click card to view details
-        </motion.p>
       </div>
 
       {/* Modal Popup */}
       <AnimatePresence>
-        {modalOpen && (
+        {modalOpen && selectedProject && (
           <motion.div
             className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
             initial={{ opacity: 0 }}
@@ -347,7 +320,7 @@ const Portfolio = () => {
               onClick={(e) => e.stopPropagation()}
             >
               <motion.button
-                className="absolute top-4 right-4 text-muted-foreground hover:text-foreground bg-background/50 rounded-full p-2 transition-colors"
+                className="absolute top-4 right-4 text-muted-foreground hover:text-foreground bg-background/50 rounded-full p-2 transition-colors z-10"
                 onClick={() => setModalOpen(false)}
                 whileHover={{ scale: 1.1, rotate: 90 }}
                 whileTap={{ scale: 0.9 }}
@@ -361,7 +334,7 @@ const Portfolio = () => {
                 transition={{ delay: 0.1 }}
                 className="inline-block text-sm text-accent font-semibold tracking-wide uppercase mb-2 px-3 py-1 bg-accent/10 rounded-full"
               >
-                {projects[index].type}
+                {selectedProject.type}
               </motion.span>
 
               <motion.h3
@@ -370,7 +343,7 @@ const Portfolio = () => {
                 transition={{ delay: 0.15 }}
                 className="text-4xl font-bold mb-4"
               >
-                {projects[index].title}
+                {selectedProject.title}
               </motion.h3>
 
               <motion.p
@@ -379,16 +352,16 @@ const Portfolio = () => {
                 transition={{ delay: 0.2 }}
                 className="text-muted-foreground mb-6 text-lg"
               >
-                {projects[index].description}
+                {selectedProject.description}
               </motion.p>
 
-              {projects[index].images && (
+              {selectedProject.images && (
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-                  {projects[index].images.map((img, i) => (
+                  {selectedProject.images.map((img, i) => (
                     <motion.img
                       key={i}
                       src={img}
-                      alt={`${projects[index].title} ${i + 1}`}
+                      alt={`${selectedProject.title} ${i + 1}`}
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: 0.25 + i * 0.1 }}
@@ -404,7 +377,7 @@ const Portfolio = () => {
                 transition={{ delay: 0.4 }}
                 className="flex flex-wrap gap-3"
               >
-                {projects[index].stats.map((stat) => (
+                {selectedProject.stats.map((stat) => (
                   <span
                     key={stat}
                     className="px-4 py-2 bg-background/50 border border-border/50 text-sm rounded-full"
