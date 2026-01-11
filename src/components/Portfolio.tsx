@@ -198,14 +198,6 @@ const TiltCard = ({
 const Portfolio = () => {
   const initialProjects: Project[] = [
     {
-      title: "Christmas Event",
-      type: "Custom Lifesteal Server",
-      description:
-        "LifeSteal setup with economy, custom islands, and 200+ plugins.",
-      stats: ["99.9% Uptime", "Custom Plugins"],
-      images: [halo1, halo2, halo3, halo4],
-    },
-    {
       title: "HaloFlux Network",
       type: "Custom Lifesteal Server",
       description:
