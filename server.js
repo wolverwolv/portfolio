@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import { MongoClient } from 'mongodb';
 import cors from 'cors';
+import path from 'path';
 
 const app = express();
 app.use(cors({
@@ -40,6 +41,14 @@ app.get('/api/projects', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// Serve static files
+app.use(express.static(path.join(process.cwd(), 'dist')));
+
+// Handle all other routes
+app.get('*', (req, res) => {
+  res.sendFile(path.join(process.cwd(), 'dist', 'index.html'));
 });
 
 const PORT = process.env.PORT || 5000;
