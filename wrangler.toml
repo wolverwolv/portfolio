@@ -1,9 +1,0 @@
-name = "poison-studio-style"
-compatibility_date = "2024-04-01"
-pages_build_output_dir = "dist"
-
-# Build configuration
-# command = "npm run build"
-
-[vars]
-# BACKEND_URL = "http://208.115.203.106:25649"
