@@ -47,7 +47,7 @@ app.get('/api/projects', async (req, res) => {
 app.use(express.static(path.join(process.cwd(), 'dist')));
 
 // Handle all other routes
-app.get('*', (req, res) => {
+app.get(/.*/, (req, res) => {
   res.sendFile(path.join(process.cwd(), 'dist', 'index.html'));
 });
 
