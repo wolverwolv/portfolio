@@ -92,13 +92,13 @@ const ReviewCard = ({ review }: { review: Review }) => {
         {/* Quote Icon */}
         <div 
           className="absolute top-6 right-6 text-accent/10 group-hover:text-accent/20 transition-colors duration-300" 
-          style={{ translateZ: 20 }}
+          style={{ transform: "translateZ(20px)" }}
         >
           <Quote size={48} />
         </div>
 
         {/* Content */}
-        <div className="flex-1 mb-6 relative z-10" style={{ transformStyle: "preserve-3d", translateZ: 30 }}>
+        <div className="flex-1 mb-6 relative z-10" style={{ transformStyle: "preserve-3d", transform: "translateZ(30px)" }}>
           <div className="flex gap-1 mb-4 text-yellow-500/80">
             {[...Array(review.rating)].map((_, i) => (
               <Star key={i} size={16} fill="currentColor" />
@@ -114,7 +114,7 @@ const ReviewCard = ({ review }: { review: Review }) => {
         </div>
 
         {/* Author */}
-        <div className="flex items-center gap-4 mt-auto pt-6 border-t border-border/30" style={{ transformStyle: "preserve-3d", translateZ: 20 }}>
+        <div className="flex items-center gap-4 mt-auto pt-6 border-t border-border/30" style={{ transformStyle: "preserve-3d", transform: "translateZ(20px)" }}>
           <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center text-accent font-bold text-xl border border-accent/20">
             {review.name.charAt(0)}
           </div>
