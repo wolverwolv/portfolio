@@ -1,6 +1,7 @@
 import { useMemo, useEffect, useRef, useState } from 'react';
 import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
 import './OrbitImages.css';
+import { ImageWithFallback } from './Portfolio'; // Import ImageWithFallback
 
 function generateEllipsePath(cx: number, cy: number, rx: number, ry: number) {
   return `M ${cx - rx} ${cy} A ${rx} ${ry} 0 1 0 ${cx + rx} ${cy} A ${rx} ${ry} 0 1 0 ${cx - rx} ${cy}`;
@@ -35,7 +36,7 @@ function generateStarPath(cx: number, cy: number, outerR: number, innerR: number
     const angle = i * step - Math.PI / 2;
     const x = cx + r * Math.cos(angle);
     const y = cy + r * Math.sin(angle);
-    path += i === 0 ? `M ${x} ${y}` : ` L ${x} ${y}`;
+    path += i === 0 ? `M ${x} ${y}` : `L ${x} ${y}`;
   }
   return path + ' Z';
 }
@@ -74,18 +75,17 @@ function OrbitItem({ item, index, totalItems, path, itemSize, rotation, progress
 
   const offsetDistance = useTransform(progress, (p: any) => {
     const offset = (((p + itemOffset) % 100) + 100) % 100;
-    // When offset is near 0 or 100, we can trigger a "new lap" effect or random glow
     return `${offset}%`;
   });
 
   // Random glow effect
   useEffect(() => {
     const interval = setInterval(() => {
-      if (Math.random() > 0.8) {
+      if (Math.random() > 0.8) { // 20% chance to glow
         setIsGlow(true);
-        setTimeout(() => setIsGlow(false), 2000);
+        setTimeout(() => setIsGlow(false), 2000); // Glow for 2 seconds
       }
-    }, 3000);
+    }, 3000); // Check every 3 seconds
     return () => clearInterval(interval);
   }, []);
 
@@ -184,11 +184,10 @@ export default function OrbitImages({
   const containerHeight = responsive ? 'auto' : (typeof height === 'number' ? height : (typeof width === 'number' ? width : 'auto'));
 
   const items = images.map((src: string, index: number) => (
-    <img
+    <ImageWithFallback
       key={src}
       src={src}
       alt={`${altPrefix} ${index + 1}`}
-      draggable={false}
       className="orbit-image"
     />
   ));

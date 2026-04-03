@@ -33,9 +33,6 @@ interface Project {
 
 // Lightbox for viewing images full screen
 const ImageViewer = ({ src, onClose }: { src: string; onClose: () => void }) => {
-  // Ensure local assets are handled correctly for the viewer
-  const finalSrc = typeof src === 'string' && src.startsWith('/uploads') ? `${API_URL}${src}` : src;
-
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -58,7 +55,7 @@ const ImageViewer = ({ src, onClose }: { src: string; onClose: () => void }) => 
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
-        src={finalSrc}
+        src={src}
         alt="Full screen view of project image"
         className="max-w-full max-h-full object-contain rounded-lg shadow-2xl cursor-target"
         onClick={(e) => e.stopPropagation()}
@@ -70,15 +67,6 @@ const ImageViewer = ({ src, onClose }: { src: string; onClose: () => void }) => 
 export const ImageWithFallback = ({ src, alt, className, ...props }: any) => {
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(true);
-
-  const getFullSrc = (url: string) => {
-    if (!url) return "/placeholder.svg";
-    if (typeof url !== 'string') return url; // For local imports like halo1
-    if (url.startsWith("/uploads")) return `${API_URL}${url}`;
-    return url;
-  };
-
-  const finalSrc = getFullSrc(src);
 
   if (error || !src) {
     return (
@@ -97,12 +85,12 @@ export const ImageWithFallback = ({ src, alt, className, ...props }: any) => {
         </div>
       )}
       <img
-        src={finalSrc}
+        src={src}
         alt={alt}
         className={`${className} ${loading ? 'opacity-0 scale-105' : 'opacity-100 scale-100'} transition-all duration-500 ease-out`}
         onLoad={() => setLoading(false)}
         onError={() => {
-          console.error(`Failed to load image: ${src}`);
+          console.error(`Failed to load image: ${src.substring(0, 50)}...`);
           setError(true);
         }}
         {...props}
