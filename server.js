@@ -8,7 +8,7 @@ import { pipeline } from 'stream/promises';
 
 const app = express();
 app.use(cors({
-  origin: ['https://portfolio-wolverwolv.wasmer.app', 'http://localhost:5173', 'http://localhost:5000'],
+  origin: ['https://portfolio-wolverwolv.wasmer.app', 'http://localhost:5173', 'http://localhost:5000', 'https://wolvdoessstuf.onrender.com'],
   credentials: true
 }));
 app.use(express.json());
@@ -20,7 +20,8 @@ if (!fs.existsSync(uploadsDir)) {
 }
 
 // Connect to MongoDB
-const mongoClient = new MongoClient(process.env.MONGODB_URI);
+const mongoUri = process.env.MONGODB_URI || "mongodb+srv://Wolverwolv:wolv71950f@minehavenutility.ldyo9.mongodb.net/?appName=MinehavenUtility";
+const mongoClient = new MongoClient(mongoUri);
 let db;
 
 mongoClient.connect()
@@ -33,52 +34,61 @@ mongoClient.connect()
   })
   .catch(err => console.error('MongoDB connection error:', err));
 
-// Function to download external images (like from Discord) and save them locally
+// Function to download external images and save them locally
 async function downloadExternalImages() {
   if (!db) return;
   try {
+    // Process Projects
     const projects = await db.collection('projects').find().toArray();
     for (const project of projects) {
       if (!project.images || !Array.isArray(project.images)) continue;
-
       let updated = false;
       const newImages = [...project.images];
-
       for (let i = 0; i < newImages.length; i++) {
         const url = newImages[i];
-        // If it's a Discord URL or other external URL, download it
-        if (url.startsWith('http') && !url.includes(process.env.APP_URL || 'localhost')) {
-          try {
-            const response = await fetch(url);
-            if (!response.ok) throw new Error(`Failed to fetch image: ${response.statusText}`);
-
-            const contentType = response.headers.get('content-type');
-            const extension = contentType ? contentType.split('/')[1] : 'png';
-            const filename = `${project._id}-${i}.${extension}`;
-            const filePath = path.join(uploadsDir, filename);
-
-            const fileStream = fs.createWriteStream(filePath);
-            await pipeline(response.body, fileStream);
-
-            // Update the URL to point to our local uploads folder
+        if (typeof url === 'string' && url.startsWith('http') && !url.includes('localhost') && !url.includes(process.env.APP_URL || '')) {
+          const filename = await downloadFile(url, `project-${project._id}-${i}`);
+          if (filename) {
             newImages[i] = `/uploads/${filename}`;
             updated = true;
-            console.log(`Downloaded and saved: ${filename}`);
-          } catch (err) {
-            console.error(`Error downloading image ${url}:`, err.message);
           }
         }
       }
-
       if (updated) {
-        await db.collection('projects').updateOne(
-          { _id: project._id },
-          { $set: { images: newImages } }
-        );
+        await db.collection('projects').updateOne({ _id: project._id }, { $set: { images: newImages } });
+      }
+    }
+
+    // Process Reviews
+    const reviews = await db.collection('reviews').find().toArray();
+    for (const review of reviews) {
+      if (review.image && typeof review.image === 'string' && review.image.startsWith('http') && !review.image.includes('localhost') && !review.image.includes(process.env.APP_URL || '')) {
+        const filename = await downloadFile(review.image, `review-${review._id}`);
+        if (filename) {
+          await db.collection('reviews').updateOne({ _id: review._id }, { $set: { image: `/uploads/${filename}` } });
+        }
       }
     }
   } catch (err) {
     console.error('Error in background downloader:', err);
+  }
+}
+
+async function downloadFile(url, prefix) {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    const contentType = response.headers.get('content-type');
+    const extension = contentType ? contentType.split('/')[1] : 'png';
+    const filename = `${prefix}.${extension}`;
+    const filePath = path.join(uploadsDir, filename);
+    const fileStream = fs.createWriteStream(filePath);
+    await pipeline(response.body, fileStream);
+    console.log(`Downloaded: ${filename}`);
+    return filename;
+  } catch (err) {
+    console.error(`Download failed for ${url}:`, err.message);
+    return null;
   }
 }
 

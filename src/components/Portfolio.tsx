@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from "framer-motion";
-import { X, Sparkles, ExternalLink, ImageOff, Loader2 } from "lucide-react";
+import { X, Sparkles, ExternalLink, ImageOff, Loader2, Maximize2 } from "lucide-react";
 
-// Import images
+// Import images (these are local assets, not from DB)
 import halo1 from "@/assets/halo1.png";
 import halo2 from "@/assets/halo2.png";
 import halo3 from "@/assets/halo3.png";
@@ -28,25 +28,57 @@ interface Project {
   description: string;
   stats: string[];
   images?: string[];
-  _id?: string; // MongoDB ID
+  _id?: string;
 }
 
-const ImageWithFallback = ({ src, alt, className, ...props }: any) => {
+// Lightbox for viewing images full screen
+const ImageViewer = ({ src, onClose }: { src: string; onClose: () => void }) => {
+  // Ensure local assets are handled correctly for the viewer
+  const finalSrc = typeof src === 'string' && src.startsWith('/uploads') ? `${API_URL}${src}` : src;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[200] bg-black/95 flex items-center justify-center p-4 md:p-12 cursor-zoom-out"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Image Viewer"
+    >
+      <motion.button
+        className="absolute top-6 right-6 text-white hover:text-accent bg-white/10 p-2 rounded-full backdrop-blur-md transition-colors z-[210]"
+        onClick={onClose}
+        aria-label="Close image viewer"
+      >
+        <X size={32} />
+      </motion.button>
+      <motion.img
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        src={finalSrc}
+        alt="Full screen view of project image"
+        className="max-w-full max-h-full object-contain rounded-lg shadow-2xl cursor-target"
+        onClick={(e) => e.stopPropagation()}
+      />
+    </motion.div>
+  );
+};
+
+export const ImageWithFallback = ({ src, alt, className, ...props }: any) => {
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Helper to get the correct image source
   const getFullSrc = (url: string) => {
     if (!url) return "/placeholder.svg";
-    // If url is a local asset import (not a string but an image module)
-    if (typeof url !== 'string') return url;
-
-    // If it's a relative path from our server
-    if (url.startsWith("/uploads")) {
-      return `${API_URL}${url}`;
-    }
+    if (typeof url !== 'string') return url; // For local imports like halo1
+    if (url.startsWith("/uploads")) return `${API_URL}${url}`;
     return url;
   };
+
+  const finalSrc = getFullSrc(src);
 
   if (error || !src) {
     return (
@@ -65,7 +97,7 @@ const ImageWithFallback = ({ src, alt, className, ...props }: any) => {
         </div>
       )}
       <img
-        src={getFullSrc(src)}
+        src={finalSrc}
         alt={alt}
         className={`${className} ${loading ? 'opacity-0 scale-105' : 'opacity-100 scale-100'} transition-all duration-500 ease-out`}
         onLoad={() => setLoading(false)}
@@ -101,18 +133,13 @@ const TiltCard = ({
   
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!cardRef.current) return;
-    
     const rect = cardRef.current.getBoundingClientRect();
     const width = rect.width;
     const height = rect.height;
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
-    
-    const xPct = mouseX / width - 0.5;
-    const yPct = mouseY / height - 0.5;
-    
-    x.set(xPct);
-    y.set(yPct);
+    x.set(mouseX / width - 0.5);
+    y.set(mouseY / height - 0.5);
   };
   
   const handleMouseLeave = () => {
@@ -123,11 +150,8 @@ const TiltCard = ({
   return (
     <motion.div
       ref={cardRef}
-      className="relative group cursor-pointer h-full"
-      style={{
-        perspective: 1000,
-        transformStyle: "preserve-3d",
-      }}
+      className="relative group cursor-pointer h-full cursor-target"
+      style={{ perspective: 1000, transformStyle: "preserve-3d" }}
       initial={{ opacity: 0, y: 40 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-50px" }}
@@ -135,9 +159,11 @@ const TiltCard = ({
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       onClick={onClick}
+      role="button"
+      aria-label={`View details for project ${project.title}`}
     >
       <motion.div
-        className="relative h-full bg-gradient-to-br from-card via-card to-card/80 border border-border/40 rounded-2xl overflow-hidden flex flex-col"
+        className="relative h-full bg-gradient-to-br from-card via-card to-card/80 border border-border/40 rounded-2xl overflow-hidden flex flex-col shadow-lg"
         style={{
           rotateX,
           rotateY,
@@ -158,12 +184,9 @@ const TiltCard = ({
             ),
           }}
         />
-        
-        {/* Border glow */}
-        <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none border-2 border-accent/30" />
-        
+
         {/* Image */}
-        <div className="relative h-48 overflow-hidden bg-secondary/20">
+        <div className="relative h-56 overflow-hidden bg-secondary/20">
           {project.images && project.images[0] ? (
             <ImageWithFallback
               src={project.images[0]}
@@ -178,69 +201,30 @@ const TiltCard = ({
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-card via-card/20 to-transparent" />
           
-          {/* Floating badge */}
-          <motion.span 
-            className="absolute top-3 left-3 text-xs font-semibold text-accent bg-background/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-accent/20"
+          <motion.span
+            className="absolute top-3 left-3 text-[10px] font-bold text-accent bg-background/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-accent/20 uppercase tracking-tighter"
             style={{ translateZ: 40 }}
           >
             {project.type}
           </motion.span>
-          
-          {/* View icon */}
-          <motion.div
-            className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-300"
-            style={{ translateZ: 50 }}
-          >
-            <div className="p-2 bg-accent/90 rounded-full text-accent-foreground shadow-lg">
-              <ExternalLink size={14} />
-            </div>
-          </motion.div>
         </div>
         
         {/* Content */}
         <div className="p-5 flex-grow flex flex-col" style={{ transformStyle: "preserve-3d" }}>
-          <motion.h3 
-            className="text-xl font-bold mb-2 group-hover:text-accent transition-colors duration-300"
-            style={{ translateZ: 30 }}
-          >
+          <motion.h3 className="text-xl font-bold mb-2 group-hover:text-accent transition-colors duration-300" style={{ translateZ: 30 }}>
             {project.title}
           </motion.h3>
-          
-          <motion.p 
-            className="text-muted-foreground text-sm leading-relaxed mb-4 line-clamp-2"
-            style={{ translateZ: 20 }}
-          >
+          <motion.p className="text-muted-foreground text-sm leading-relaxed mb-4 line-clamp-2" style={{ translateZ: 20 }}>
             {project.description}
           </motion.p>
-          
-          {/* Stats */}
-          <motion.div 
-            className="flex flex-wrap gap-2 mt-auto"
-            style={{ translateZ: 25 }}
-          >
+          <motion.div className="flex flex-wrap gap-2 mt-auto" style={{ translateZ: 25 }}>
             {project.stats.slice(0, 2).map((stat) => (
-              <span
-                key={stat}
-                className="text-xs px-3 py-1 bg-background/60 border border-border/50 rounded-full text-muted-foreground"
-              >
+              <span key={stat} className="text-[10px] px-3 py-1 bg-background/60 border border-border/50 rounded-full text-muted-foreground uppercase font-semibold">
                 {stat}
               </span>
             ))}
           </motion.div>
-          
-          {/* Image count indicator */}
-          {project.images && project.images.length > 1 && (
-            <motion.div 
-              className="absolute bottom-4 right-4 text-xs text-muted-foreground/60"
-              style={{ translateZ: 20 }}
-            >
-              +{project.images.length - 1} more
-            </motion.div>
-          )}
         </div>
-        
-        {/* Bottom accent line */}
-        <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-accent/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
       </motion.div>
     </motion.div>
   );
@@ -248,77 +232,26 @@ const TiltCard = ({
 
 const Portfolio = () => {
   const initialProjects: Project[] = [
-    {
-      title: "HaloFlux Network",
-      type: "Custom Lifesteal Server",
-      description:
-        "LifeSteal setup with economy, custom islands, and 200+ plugins.",
-      stats: ["99.9% Uptime", "Custom Plugins"],
-      images: [halo1, halo2, halo3, halo4],
-    },
-    {
-      title: "NPCs",
-      type: "Custom NPCS",
-      description:
-        "Cool NPCs with mythicMobs, Citizens, FancyNPCs etc",
-      stats: ["NPCS with animations"],
-      images: [npc, npc2, npc3],
-    },
-    {
-      title: "GUIs Configurations",
-      type: "Adding GUI textures to Menu's",
-      description:
-        "Configuration of menu's",
-      stats: ["optimised menus", "no bugs"],
-      images: [gui, gui2],
-    },
-    {
-      title: "Crates Configurations",
-      type: "Custom crates",
-      description:
-        "Configuration of crates",
-      stats: ["custom model crates", "custom rewards"],
-      images: [crate, crate1],
-    },
-    {
-      title: "SetUps",
-      type: "Custom Server Setups",
-      description:
-        "100+ plguins with custom made rps",
-      stats: ["Optimized", "best service"],
-      images: [s1, s2],
-    },
-    {
-      title: "Custom Plugin",
-      type: "Custom Plugin Development",
-      description:
-        "Custom made observation haki plugin(Fiction themed)",
-      stats: ["Haki", "One Piece"],
-      images: [plug],
-    },
-    {
-      title: "MythicMobs interactable shell",
-      type: "Custom entities",
-      description:
-        "Configuring custom mobs/entites for your server",
-      stats: ["bosses", "npcs", "mobs"],
-      images: [mm],
-    },
+    { title: "HaloFlux Network", type: "Custom Lifesteal Server", description: "LifeSteal setup with economy, custom islands, and 200+ plugins.", stats: ["99.9% Uptime", "Custom Plugins"], images: [halo1, halo2, halo3, halo4] },
+    { title: "NPCs", type: "Custom NPCS", description: "Cool NPCs with mythicMobs, Citizens, FancyNPCs etc", stats: ["NPCS with animations"], images: [npc, npc2, npc3] },
+    { title: "GUIs Configurations", type: "Adding GUI textures to Menu's", description: "Configuration of menu's", stats: ["optimised menus", "no bugs"], images: [gui, gui2] },
+    { title: "Crates Configurations", type: "Custom crates", description: "Configuration of crates", stats: ["custom model crates", "custom rewards"], images: [crate, crate1] },
+    { title: "SetUps", type: "Custom Server Setups", description: "100+ plguins with custom made rps", stats: ["Optimized", "best service"], images: [s1, s2] },
+    { title: "Custom Plugin", type: "Custom Plugin Development", description: "Custom made observation haki plugin(Fiction themed)", stats: ["Haki", "One Piece"], images: [plug] },
+    { title: "MythicMobs interactable shell", type: "Custom entities", description: "Configuring custom mobs/entites for your server", stats: ["bosses", "npcs", "mobs"], images: [mm] },
   ];
 
   const [projects, setProjects] = useState<Project[]>(() => {
-    // Try to load from localStorage on initial render
     const saved = localStorage.getItem("cached_projects");
     if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        return [...parsed, ...initialProjects];
-      } catch (e) {
-        return initialProjects;
-      }
+      try { return [...JSON.parse(saved), ...initialProjects]; } catch (e) { return initialProjects; }
     }
     return initialProjects;
   });
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [viewerImage, setViewerImage] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchProjects = async () => {
@@ -327,73 +260,40 @@ const Portfolio = () => {
         if (!res.ok) throw new Error("Failed to fetch");
         const data = await res.json();
         if (Array.isArray(data)) {
-          // Cache to localStorage
           localStorage.setItem("cached_projects", JSON.stringify(data));
-          // Put new projects first
           setProjects([...data, ...initialProjects]);
         }
-      } catch (error) {
-        console.error("Failed to fetch projects, using cached/initial data:", error);
-      }
+      } catch (error) { console.error("Fetch projects failed:", error); }
     };
     fetchProjects();
   }, []);
 
-  const [modalOpen, setModalOpen] = useState(false);
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-
   const openModal = (project: Project) => {
     setSelectedProject(project);
     setModalOpen(true);
-    // Prevent body scroll
     document.body.style.overflow = "hidden";
   };
 
   const closeModal = () => {
     setModalOpen(false);
-    // Restore body scroll
     document.body.style.overflow = "unset";
   };
 
   return (
     <section id="work" className="py-32 px-6 relative overflow-hidden bg-secondary/20">
-      {/* Background decoration */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-accent/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-accent/3 rounded-full blur-3xl" />
-      </div>
-
       <div className="container mx-auto relative z-10">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-16"
-        >
-          <span className="inline-flex items-center gap-2 text-accent text-sm font-medium mb-4 tracking-wider uppercase">
-            <Sparkles size={16} />
-            Portfolio
-          </span>
-          <h2 className="text-6xl md:text-8xl font-bold">
-            Recent Work
-          </h2>
+        <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }} className="text-center mb-16">
+          <span className="inline-flex items-center gap-2 text-accent text-sm font-medium mb-4 tracking-wider uppercase"><Sparkles size={16} />Portfolio</span>
+          <h2 className="text-6xl md:text-8xl font-bold">Recent Work</h2>
         </motion.div>
 
-        {/* Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto auto-rows-fr">
           {projects.map((project, index) => (
-            <TiltCard
-              key={project._id || `${project.title}-${index}`}
-              project={project}
-              onClick={() => openModal(project)}
-            />
+            <TiltCard key={project._id || `${project.title}-${index}`} project={project} onClick={() => openModal(project)} />
           ))}
         </div>
       </div>
 
-      {/* Modal Popup */}
       <AnimatePresence>
         {modalOpen && selectedProject && (
           <motion.div
@@ -401,97 +301,64 @@ const Portfolio = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
             onClick={closeModal}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="project-modal-title"
           >
             <motion.div
-              className="bg-gradient-to-br from-card to-card/95 rounded-3xl p-6 md:p-10 max-w-5xl w-full relative overflow-y-auto max-h-[95vh] border border-border/50 shadow-[0_0_50px_rgba(0,0,0,0.5)]"
+              className="bg-card rounded-3xl p-6 md:p-10 max-w-5xl w-full relative overflow-y-auto max-h-[95vh] border border-border/50 shadow-2xl"
               initial={{ scale: 0.9, opacity: 0, y: 30 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 30 }}
-              transition={{ type: "spring", stiffness: 300, damping: 25 }}
               onClick={(e) => e.stopPropagation()}
             >
-              <motion.button
-                className="fixed md:absolute top-4 right-4 text-muted-foreground hover:text-foreground bg-background/50 backdrop-blur-md rounded-full p-2 transition-all z-[110] border border-border/50"
+              <button
+                className="absolute top-4 right-4 text-muted-foreground hover:text-foreground bg-background/50 rounded-full p-2 z-[110] border border-border/50 cursor-target"
                 onClick={closeModal}
-                whileHover={{ scale: 1.1, rotate: 90 }}
-                whileTap={{ scale: 0.9 }}
+                aria-label="Close project details"
               >
                 <X size={24} />
-              </motion.button>
-
+              </button>
               <div className="flex flex-col gap-8">
                 <div>
-                  <motion.span
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="inline-block text-sm text-accent font-semibold tracking-wide uppercase mb-3 px-4 py-1.5 bg-accent/10 rounded-full border border-accent/20"
-                  >
-                    {selectedProject.type}
-                  </motion.span>
-
-                  <motion.h3
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.15 }}
-                    className="text-4xl md:text-5xl font-bold mb-6 text-foreground"
-                  >
-                    {selectedProject.title}
-                  </motion.h3>
-
-                  <motion.p
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="text-muted-foreground mb-8 text-lg md:text-xl leading-relaxed max-w-3xl"
-                  >
-                    {selectedProject.description}
-                  </motion.p>
-
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 }}
-                    className="flex flex-wrap gap-3 mb-8"
-                  >
+                  <span className="inline-block text-sm text-accent font-semibold tracking-wide uppercase mb-3 px-4 py-1.5 bg-accent/10 rounded-full border border-accent/20">{selectedProject.type}</span>
+                  <h3 id="project-modal-title" className="text-4xl md:text-5xl font-bold mb-6">{selectedProject.title}</h3>
+                  <p className="text-muted-foreground mb-8 text-lg leading-relaxed max-w-3xl">{selectedProject.description}</p>
+                  <div className="flex flex-wrap gap-3 mb-8">
                     {selectedProject.stats.map((stat) => (
-                      <span
-                        key={stat}
-                        className="px-5 py-2.5 bg-background/50 border border-border/50 text-sm md:text-base rounded-2xl font-medium"
-                      >
-                        {stat}
-                      </span>
+                      <span key={stat} className="px-5 py-2 bg-background/50 border border-border/50 text-sm rounded-2xl font-medium">{stat}</span>
                     ))}
-                  </motion.div>
+                  </div>
                 </div>
 
                 {selectedProject.images && selectedProject.images.length > 0 && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {selectedProject.images.map((img, i) => (
-                      <motion.div
-                        key={i}
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: 0.35 + i * 0.1 }}
-                        className={`${i === 0 && selectedProject.images!.length % 2 !== 0 ? 'md:col-span-2' : ''} group relative overflow-hidden rounded-2xl border border-border/50 shadow-lg bg-secondary/10`}
-                      >
-                        <ImageWithFallback
-                          src={img}
-                          alt={`${selectedProject.title} ${i + 1}`}
-                          className="w-full h-full object-cover min-h-[300px] max-h-[500px] transition-transform duration-500 group-hover:scale-105"
-                        />
-                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center pointer-events-none">
-                           <span className="bg-background/80 backdrop-blur-md px-4 py-2 rounded-full text-sm font-medium border border-border/50">View Image</span>
+                      <div key={i} className={`relative group cursor-zoom-in overflow-hidden rounded-2xl border border-border/50 cursor-target ${i === 0 && selectedProject.images!.length % 2 !== 0 ? 'md:col-span-2' : ''}`} onClick={() => setViewerImage(img)}>
+                        <ImageWithFallback src={img} alt={`${selectedProject.title} ${i + 1}`} className="w-full h-full object-cover min-h-[300px] max-h-[500px] transition-transform duration-500 group-hover:scale-105" />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <div className="bg-background/80 backdrop-blur-md px-6 py-3 rounded-full flex items-center gap-2 font-bold shadow-xl border border-border/50">
+                            <Maximize2 size={20} className="text-accent" />
+                            View Image
+                          </div>
                         </div>
-                      </motion.div>
+                      </div>
                     ))}
                   </div>
                 )}
               </div>
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {viewerImage && (
+          <ImageViewer
+            src={viewerImage}
+            onClose={() => setViewerImage(null)}
+          />
         )}
       </AnimatePresence>
     </section>

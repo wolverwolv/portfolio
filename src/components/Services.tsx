@@ -27,6 +27,15 @@ const Services = () => {
         "And many more!",
       ],
     },
+    {
+      category: "Creative Development",
+      items: [
+        "Pixel Arts",
+        "Texture Pack Artist",
+        "Mod Developer",
+        "Blockbench Modeler",
+      ],
+    },
   ];
 
   return (
@@ -42,7 +51,7 @@ const Services = () => {
           What i do:
         </motion.h2>
         
-        <div className="grid md:grid-cols-2 gap-16">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-16">
           {services.map((service, index) => (
             <motion.div 
               key={service.category}
