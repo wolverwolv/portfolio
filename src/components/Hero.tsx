@@ -20,16 +20,19 @@ const Hero = () => {
   useEffect(() => {
     const fetchRandomImages = async () => {
       try {
-        const res = await fetch(`${API_URL}/api/projects`);
+        const res = await fetch(`${API_URL}/api/projects?t=${Date.now()}`);
         const data = await res.json();
         if (Array.isArray(data) && data.length > 0) {
+          // Extract all images from all projects and flatten them
           const allImages = data.flatMap(p => p.images || []).filter(Boolean);
           if (allImages.length > 0) {
             const shuffled = allImages.sort(() => 0.5 - Math.random());
             // Combine DB images with local fallbacks to ensure a full orbit
             setOrbitImages(prev => {
                 const combined = [...shuffled.slice(0, 6), ...prev];
-                return Array.from(new Set(combined)).slice(0, 8);
+                // Use a Set to ensure unique images and limit to 8
+                const unique = Array.from(new Set(combined));
+                return unique.slice(0, 8);
             });
           }
         }

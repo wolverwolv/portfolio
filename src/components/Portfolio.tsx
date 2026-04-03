@@ -85,7 +85,10 @@ export const ImageWithFallback = ({ src, alt, className, ...props }: any) => {
         alt={alt}
         className={`${className} ${loading ? 'opacity-0 scale-105' : 'opacity-100 scale-100'} transition-all duration-500 ease-out`}
         onLoad={() => setLoading(false)}
-        onError={() => setError(true)}
+        onError={() => {
+          console.error(`Failed to load image: ${typeof src === 'string' ? src.substring(0, 50) : 'object'}`);
+          setError(true);
+        }}
         {...props}
       />
     </div>
@@ -170,7 +173,7 @@ const Portfolio = () => {
 
   useEffect(() => {
     fetchProjects();
-    const interval = setInterval(fetchProjects, 60000); // Auto-sync every 60s
+    const interval = setInterval(fetchProjects, 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -178,7 +181,16 @@ const Portfolio = () => {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [viewerImage, setViewerImage] = useState<string | null>(null);
 
-  const openModal = (p: Project) => { setSelectedProject(p); setModalOpen(true); document.body.style.overflow = "hidden"; };
+  const openModal = (p: Project) => {
+    setSelectedProject(p);
+    setModalOpen(true);
+    document.body.style.overflow = "hidden";
+  };
+
+  const closeModal = () => {
+    setModalOpen(false);
+    document.body.style.overflow = "unset";
+  };
 
   return (
     <section id="work" className="py-32 px-6 relative overflow-hidden bg-secondary/20">
@@ -193,9 +205,9 @@ const Portfolio = () => {
       </div>
       <AnimatePresence>
         {modalOpen && selectedProject && (
-          <motion.div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-[100] p-4 md:p-8" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setModalOpen(false)}>
+          <motion.div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-[100] p-4 md:p-8" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={closeModal}>
             <motion.div className="bg-card rounded-3xl p-6 md:p-10 max-w-5xl w-full relative overflow-y-auto max-h-[95vh] border border-border/50 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-              <button className="absolute top-4 right-4 text-muted-foreground hover:text-foreground bg-background/50 rounded-full p-2 z-[110] cursor-target" onClick={() => setModalOpen(false)}><X size={24} /></button>
+              <button className="absolute top-4 right-4 text-muted-foreground hover:text-foreground bg-background/50 rounded-full p-2 z-[110] cursor-target" onClick={closeModal}><X size={24} /></button>
               <div className="flex flex-col gap-8">
                 <div>
                   <span className="inline-block text-sm text-accent font-semibold tracking-wide uppercase mb-3 px-4 py-1.5 bg-accent/10 rounded-full border border-accent/20">{selectedProject.type}</span>
@@ -206,7 +218,7 @@ const Portfolio = () => {
                 {selectedProject.images && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {selectedProject.images.map((img, i) => (
-                      <div key={i} className="relative group cursor-zoom-in overflow-hidden rounded-2xl border border-border/50 cursor-target" onClick={() => setViewerImage(img)}>
+                      <div key={i} className={`relative group cursor-zoom-in overflow-hidden rounded-2xl border border-border/50 cursor-target`} onClick={() => setViewerImage(img)}>
                         <ImageWithFallback src={img} alt="Project" className="w-full h-full object-cover min-h-[300px]" />
                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center"><div className="bg-background/80 px-6 py-3 rounded-full flex items-center gap-2 font-bold"><Maximize2 size={20} className="text-accent" />View Image</div></div>
                       </div>

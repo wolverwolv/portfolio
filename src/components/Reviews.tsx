@@ -64,39 +64,31 @@ const ReviewCard = ({ review, onImageClick }: { review: Review, onImageClick: (s
     y.set((e.clientY - rect.top) / rect.height - 0.5);
   };
 
-  const handleMouseLeave = () => {
-    x.set(0);
-    y.set(0);
-  };
-
   return (
     <motion.div
       ref={cardRef}
-      className="relative group h-full"
+      className="relative group h-full cursor-target"
       style={{ perspective: 1000, transformStyle: "preserve-3d" }}
       initial={{ opacity: 0, y: 40 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-50px" }}
-      transition={{ duration: 0.5, ease: "easeOut" }}
+      transition={{ duration: 0.5 }}
       onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
+      onMouseLeave={() => { x.set(0); y.set(0); }}
     >
       <motion.div
         className="relative h-full bg-gradient-to-br from-card via-card to-card/80 border border-border/40 rounded-2xl p-8 flex flex-col shadow-lg"
         style={{
           rotateX,
           rotateY,
-          transformStyle: "preserve-3d",
           filter: useTransform(brightness, (b) => `brightness(${b})`),
         }}
-        whileHover={{ scale: 1.02 }}
-        transition={{ duration: 0.2 }}
       >
-        <div className="absolute top-6 right-6 text-accent/10 group-hover:text-accent/20 transition-colors duration-300" style={{ transform: "translateZ(20px)" }}>
+        <div className="absolute top-6 right-6 text-accent/10 group-hover:text-accent/20 transition-colors duration-300">
           <Quote size={48} />
         </div>
 
-        <div className="flex-1 mb-6 relative z-10" style={{ transformStyle: "preserve-3d", transform: "translateZ(30px)" }}>
+        <div className="flex-1 mb-6 relative z-10">
           <div className="flex gap-1 mb-4 text-yellow-500/80">
             {[...Array(review.rating)].map((_, i) => (
               <Star key={i} size={16} fill="currentColor" />
@@ -109,7 +101,7 @@ const ReviewCard = ({ review, onImageClick }: { review: Review, onImageClick: (s
           >
             <ImageWithFallback
               src={review.image} 
-              alt={`${review.name}'s review`}
+              alt="Review"
               className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-all duration-500 group-hover:scale-105"
             />
             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
@@ -121,7 +113,7 @@ const ReviewCard = ({ review, onImageClick }: { review: Review, onImageClick: (s
           </div>
         </div>
 
-        <div className="flex items-center gap-4 mt-auto pt-6 border-t border-border/30" style={{ transformStyle: "preserve-3d", transform: "translateZ(20px)" }}>
+        <div className="flex items-center gap-4 mt-auto pt-6 border-t border-border/30">
           <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center text-accent font-bold text-xl border border-accent/20">
             {review.name.charAt(0)}
           </div>
@@ -145,59 +137,58 @@ const Reviews = () => {
     { name: "nugget", role: "client", image: r5, rating: 5, date: "3 months ago" }
   ];
 
-  const [reviews, setReviews] = useState<Review[]>(() => {
-    const saved = localStorage.getItem("cached_reviews");
-    if (saved) {
-      try { return [...JSON.parse(saved), ...initialReviews]; } catch (e) { return initialReviews; }
-    }
-    return initialReviews;
-  });
+  const [reviews, setReviews] = useState<Review[]>(initialReviews);
+
+  const fetchReviews = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/reviews?t=${Date.now()}`);
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setReviews([...data, ...initialReviews]);
+      }
+    } catch (error) { console.error("Failed to fetch reviews:", error); }
+  };
+
+  useEffect(() => {
+    fetchReviews();
+    const interval = setInterval(fetchReviews, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   const [viewerImage, setViewerImage] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchReviews = async () => {
-      try {
-        const res = await fetch(`${API_URL}/api/reviews`);
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          localStorage.setItem("cached_reviews", JSON.stringify(data));
-          setReviews([...data, ...initialReviews]);
-        }
-      } catch (error) { console.error("Failed to fetch reviews:", error); }
-    };
-    fetchReviews();
-  }, []);
-
-  const handleLoadMore = () => setVisibleCount((prev) => Math.min(prev + 3, reviews.length));
+    if (viewerImage) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+  }, [viewerImage]);
 
   return (
     <section id="reviews" className="py-32 px-6 relative overflow-hidden">
       <div className="container mx-auto relative z-10">
-        <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }} className="text-center mb-20">
+        <div className="text-center mb-20">
           <span className="inline-flex items-center gap-2 text-accent text-sm font-medium mb-4 tracking-wider uppercase"><Star size={16} />Testimonials</span>
           <h2 className="text-6xl md:text-8xl font-bold">Client Reviews</h2>
-        </motion.div>
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto auto-rows-fr">
           {reviews.slice(0, visibleCount).map((review, index) => (
-            <ReviewCard key={index} review={review} onImageClick={(src) => setViewerImage(src)} />
+            <ReviewCard key={review._id || index} review={review} onImageClick={(src) => setViewerImage(src)} />
           ))}
         </div>
 
         {visibleCount < reviews.length && (
           <div className="text-center mt-16">
-            <Button onClick={handleLoadMore} size="lg" variant="outline" className="min-w-[200px]">Load More Reviews</Button>
+            <Button onClick={() => setVisibleCount(v => v + 3)} size="lg" variant="outline" className="min-w-[200px]">Load More Reviews</Button>
           </div>
         )}
       </div>
 
       <AnimatePresence>
         {viewerImage && (
-          <ImageViewer
-            src={typeof viewerImage === 'string' && viewerImage.startsWith('/uploads') ? `${API_URL}${viewerImage}` : viewerImage}
-            onClose={() => setViewerImage(null)}
-          />
+          <ImageViewer src={viewerImage} onClose={() => setViewerImage(null)} />
         )}
       </AnimatePresence>
     </section>
