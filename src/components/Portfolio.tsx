@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from "framer-motion";
 import { X, Sparkles, ExternalLink, ImageOff, Loader2, Maximize2 } from "lucide-react";
 
-// Import images (these are local assets, not from DB)
+// Import images (local assets)
 import halo1 from "@/assets/halo1.png";
 import halo2 from "@/assets/halo2.png";
 import halo3 from "@/assets/halo3.png";
@@ -31,7 +31,6 @@ interface Project {
   _id?: string;
 }
 
-// Lightbox for viewing images full screen
 const ImageViewer = ({ src, onClose }: { src: string; onClose: () => void }) => {
   return (
     <motion.div
@@ -42,12 +41,10 @@ const ImageViewer = ({ src, onClose }: { src: string; onClose: () => void }) => 
       onClick={onClose}
       role="dialog"
       aria-modal="true"
-      aria-label="Image Viewer"
     >
       <motion.button
         className="absolute top-6 right-6 text-white hover:text-accent bg-white/10 p-2 rounded-full backdrop-blur-md transition-colors z-[210]"
         onClick={onClose}
-        aria-label="Close image viewer"
       >
         <X size={32} />
       </motion.button>
@@ -56,7 +53,6 @@ const ImageViewer = ({ src, onClose }: { src: string; onClose: () => void }) => 
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
         src={src}
-        alt="Full screen view"
         className="max-w-full max-h-full object-contain rounded-lg shadow-2xl cursor-target"
         onClick={(e) => e.stopPropagation()}
       />
@@ -68,11 +64,7 @@ export const ImageWithFallback = ({ src, alt, className, ...props }: any) => {
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // If src is a Base64 string or a local import, use it directly.
-  // The old /uploads paths are no longer relevant with Base64 in DB.
-  const finalSrc = src;
-
-  if (error || !finalSrc) {
+  if (error || !src) {
     return (
       <div className={`${className} bg-secondary/30 flex items-center justify-center flex-col gap-2 text-muted-foreground min-h-[100px]`}>
         <ImageOff size={24} />
@@ -89,28 +81,18 @@ export const ImageWithFallback = ({ src, alt, className, ...props }: any) => {
         </div>
       )}
       <img
-        src={finalSrc}
+        src={src}
         alt={alt}
         className={`${className} ${loading ? 'opacity-0 scale-105' : 'opacity-100 scale-100'} transition-all duration-500 ease-out`}
         onLoad={() => setLoading(false)}
-        onError={() => {
-          console.error(`Failed to load image: ${typeof finalSrc === 'string' ? finalSrc.substring(0, 50) : 'object'}`);
-          setError(true);
-        }}
+        onError={() => setError(true)}
         {...props}
       />
     </div>
   );
 };
 
-// 3D Tilt Card Component
-const TiltCard = ({ 
-  project, 
-  onClick 
-}: { 
-  project: Project; 
-  onClick: () => void;
-}) => {
+const TiltCard = ({ project, onClick }: { project: Project; onClick: () => void }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const x = useMotionValue(0);
   const y = useMotionValue(0);
@@ -126,11 +108,6 @@ const TiltCard = ({
     x.set((e.clientX - rect.left) / rect.width - 0.5);
     y.set((e.clientY - rect.top) / rect.height - 0.5);
   };
-  
-  const handleMouseLeave = () => {
-    x.set(0);
-    y.set(0);
-  };
 
   return (
     <motion.div
@@ -140,52 +117,28 @@ const TiltCard = ({
       initial={{ opacity: 0, y: 40 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-50px" }}
-      transition={{ duration: 0.5, ease: "easeOut" }}
+      transition={{ duration: 0.5 }}
       onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
+      onMouseLeave={() => { x.set(0); y.set(0); }}
       onClick={onClick}
-      role="button"
-      aria-label={`View details for ${project.title}`}
     >
       <motion.div
         className="relative h-full bg-gradient-to-br from-card via-card to-card/80 border border-border/40 rounded-2xl overflow-hidden flex flex-col shadow-lg"
-        style={{
-          rotateX,
-          rotateY,
-          transformStyle: "preserve-3d",
-          filter: useTransform(brightness, (b) => `brightness(${b})`),
-        }}
-        whileHover={{ scale: 1.02 }}
-        transition={{ duration: 0.2 }}
+        style={{ rotateX, rotateY, filter: useTransform(brightness, (b) => `brightness(${b})`) }}
       >
-        <motion.div
-          className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
-          style={{
-            background: useTransform(
-              [mouseXSpring, mouseYSpring],
-              ([lx, ly]) => `radial-gradient(600px circle at ${(Number(lx)+0.5)*100}% ${(Number(ly)+0.5)*100}%, rgba(255,255,255,0.1), transparent 40%)`
-            ),
-          }}
-        />
-
         <div className="relative h-56 overflow-hidden bg-secondary/20">
-          {project.images && project.images[0] ? (
-            <ImageWithFallback src={project.images[0]} alt={project.title} className="w-full h-full object-cover" style={{ transformStyle: "preserve-3d", translateZ: 20 }} />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center"><ImageOff className="text-muted-foreground/30" size={32} /></div>
-          )}
+          <ImageWithFallback src={project.images?.[0]} alt={project.title} className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-card via-card/20 to-transparent" />
-          <motion.span className="absolute top-3 left-3 text-[10px] font-bold text-accent bg-background/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-accent/20 uppercase tracking-tighter" style={{ translateZ: 40 }}>{project.type}</motion.span>
+          <span className="absolute top-3 left-3 text-[10px] font-bold text-accent bg-background/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-accent/20 uppercase">{project.type}</span>
         </div>
-        
-        <div className="p-5 flex-grow flex flex-col" style={{ transformStyle: "preserve-3d" }}>
-          <motion.h3 className="text-xl font-bold mb-2 group-hover:text-accent transition-colors duration-300" style={{ translateZ: 30 }}>{project.title}</motion.h3>
-          <motion.p className="text-muted-foreground text-sm leading-relaxed mb-4 line-clamp-2" style={{ translateZ: 20 }}>{project.description}</motion.p>
-          <motion.div className="flex flex-wrap gap-2 mt-auto" style={{ translateZ: 25 }}>
+        <div className="p-5 flex-grow flex flex-col">
+          <h3 className="text-xl font-bold mb-2 group-hover:text-accent transition-colors">{project.title}</h3>
+          <p className="text-muted-foreground text-sm leading-relaxed mb-4 line-clamp-2">{project.description}</p>
+          <div className="flex flex-wrap gap-2 mt-auto">
             {project.stats.slice(0, 2).map((s) => (
               <span key={s} className="text-[10px] px-3 py-1 bg-background/60 border border-border/50 rounded-full text-muted-foreground uppercase font-semibold">{s}</span>
             ))}
-          </motion.div>
+          </div>
         </div>
       </motion.div>
     </motion.div>
@@ -203,62 +156,59 @@ const Portfolio = () => {
     { title: "MythicMobs interactable shell", type: "Custom entities", description: "Configuring custom mobs/entites for your server", stats: ["bosses", "npcs", "mobs"], images: [mm] },
   ];
 
-  const [projects, setProjects] = useState<Project[]>(() => {
-    const saved = localStorage.getItem("cached_projects");
-    if (saved) { try { return [...JSON.parse(saved), ...initialProjects]; } catch (e) { return initialProjects; } }
-    return initialProjects;
-  });
+  const [projects, setProjects] = useState<Project[]>(initialProjects);
+
+  const fetchProjects = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/projects?t=${Date.now()}`);
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setProjects([...data, ...initialProjects]);
+      }
+    } catch (error) { console.error("Fetch failed:", error); }
+  };
+
+  useEffect(() => {
+    fetchProjects();
+    const interval = setInterval(fetchProjects, 60000); // Auto-sync every 60s
+    return () => clearInterval(interval);
+  }, []);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [viewerImage, setViewerImage] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchProjects = async () => {
-      try {
-        const res = await fetch(`${API_URL}/api/projects`);
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          localStorage.setItem("cached_projects", JSON.stringify(data));
-          setProjects([...data, ...initialProjects]);
-        }
-      } catch (error) { console.error("Fetch projects failed:", error); }
-    };
-    fetchProjects();
-  }, []);
-
   const openModal = (p: Project) => { setSelectedProject(p); setModalOpen(true); document.body.style.overflow = "hidden"; };
-  const closeModal = () => { setModalOpen(false); document.body.style.overflow = "unset"; };
 
   return (
     <section id="work" className="py-32 px-6 relative overflow-hidden bg-secondary/20">
       <div className="container mx-auto relative z-10">
-        <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }} className="text-center mb-16">
-          <span className="inline-flex items-center gap-2 text-accent text-sm font-medium mb-4 tracking-wider uppercase"><Sparkles size={16} />Portfolio</span>
+        <div className="text-center mb-16">
+          <span className="inline-flex items-center gap-2 text-accent text-sm font-medium mb-4 uppercase tracking-wider"><Sparkles size={16} />Portfolio</span>
           <h2 className="text-6xl md:text-8xl font-bold">Recent Work</h2>
-        </motion.div>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto auto-rows-fr">
           {projects.map((p, i) => ( <TiltCard key={p._id || i} project={p} onClick={() => openModal(p)} /> ))}
         </div>
       </div>
       <AnimatePresence>
         {modalOpen && selectedProject && (
-          <motion.div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-[100] p-4 md:p-8" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={closeModal} role="dialog" aria-modal="true" aria-labelledby="p-title">
-            <motion.div className="bg-card rounded-3xl p-6 md:p-10 max-w-5xl w-full relative overflow-y-auto max-h-[95vh] border border-border/50 shadow-2xl" initial={{ scale: 0.9, opacity: 0, y: 30 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 30 }} onClick={(e) => e.stopPropagation()}>
-              <button className="absolute top-4 right-4 text-muted-foreground hover:text-foreground bg-background/50 rounded-full p-2 z-[110] border border-border/50 cursor-target" onClick={closeModal} aria-label="Close"><X size={24} /></button>
+          <motion.div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-[100] p-4 md:p-8" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setModalOpen(false)}>
+            <motion.div className="bg-card rounded-3xl p-6 md:p-10 max-w-5xl w-full relative overflow-y-auto max-h-[95vh] border border-border/50 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+              <button className="absolute top-4 right-4 text-muted-foreground hover:text-foreground bg-background/50 rounded-full p-2 z-[110] cursor-target" onClick={() => setModalOpen(false)}><X size={24} /></button>
               <div className="flex flex-col gap-8">
                 <div>
                   <span className="inline-block text-sm text-accent font-semibold tracking-wide uppercase mb-3 px-4 py-1.5 bg-accent/10 rounded-full border border-accent/20">{selectedProject.type}</span>
-                  <h3 id="p-title" className="text-4xl md:text-5xl font-bold mb-6">{selectedProject.title}</h3>
+                  <h3 className="text-4xl md:text-5xl font-bold mb-6">{selectedProject.title}</h3>
                   <p className="text-muted-foreground mb-8 text-lg leading-relaxed max-w-3xl">{selectedProject.description}</p>
                   <div className="flex flex-wrap gap-3 mb-8">{selectedProject.stats.map((s) => ( <span key={s} className="px-5 py-2 bg-background/50 border border-border/50 text-sm rounded-2xl font-medium">{s}</span> ))}</div>
                 </div>
-                {selectedProject.images && selectedProject.images.length > 0 && (
+                {selectedProject.images && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {selectedProject.images.map((img, i) => (
-                      <div key={i} className={`relative group cursor-zoom-in overflow-hidden rounded-2xl border border-border/50 cursor-target ${i === 0 && selectedProject.images!.length % 2 !== 0 ? 'md:col-span-2' : ''}`} onClick={() => setViewerImage(img)}>
-                        <ImageWithFallback src={img} alt={`${selectedProject.title} ${i+1}`} className="w-full h-full object-cover min-h-[300px] max-h-[500px] transition-transform duration-500 group-hover:scale-105" />
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"><div className="bg-background/80 backdrop-blur-md px-6 py-3 rounded-full flex items-center gap-2 font-bold shadow-xl border border-border/50"><Maximize2 size={20} className="text-accent" />View Image</div></div>
+                      <div key={i} className="relative group cursor-zoom-in overflow-hidden rounded-2xl border border-border/50 cursor-target" onClick={() => setViewerImage(img)}>
+                        <ImageWithFallback src={img} alt="Project" className="w-full h-full object-cover min-h-[300px]" />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center"><div className="bg-background/80 px-6 py-3 rounded-full flex items-center gap-2 font-bold"><Maximize2 size={20} className="text-accent" />View Image</div></div>
                       </div>
                     ))}
                   </div>
