@@ -56,7 +56,7 @@ const ImageViewer = ({ src, onClose }: { src: string; onClose: () => void }) => 
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
         src={src}
-        alt="Full screen view of project image"
+        alt="Full screen view"
         className="max-w-full max-h-full object-contain rounded-lg shadow-2xl cursor-target"
         onClick={(e) => e.stopPropagation()}
       />
@@ -68,7 +68,11 @@ export const ImageWithFallback = ({ src, alt, className, ...props }: any) => {
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  if (error || !src) {
+  // If src is a Base64 string or a local import, use it directly.
+  // The old /uploads paths are no longer relevant with Base64 in DB.
+  const finalSrc = src;
+
+  if (error || !finalSrc) {
     return (
       <div className={`${className} bg-secondary/30 flex items-center justify-center flex-col gap-2 text-muted-foreground min-h-[100px]`}>
         <ImageOff size={24} />
@@ -85,12 +89,12 @@ export const ImageWithFallback = ({ src, alt, className, ...props }: any) => {
         </div>
       )}
       <img
-        src={src}
+        src={finalSrc}
         alt={alt}
         className={`${className} ${loading ? 'opacity-0 scale-105' : 'opacity-100 scale-100'} transition-all duration-500 ease-out`}
         onLoad={() => setLoading(false)}
         onError={() => {
-          console.error(`Failed to load image: ${src.substring(0, 50)}...`);
+          console.error(`Failed to load image: ${typeof finalSrc === 'string' ? finalSrc.substring(0, 50) : 'object'}`);
           setError(true);
         }}
         {...props}
@@ -108,13 +112,10 @@ const TiltCard = ({
   onClick: () => void;
 }) => {
   const cardRef = useRef<HTMLDivElement>(null);
-  
   const x = useMotionValue(0);
   const y = useMotionValue(0);
-  
   const mouseXSpring = useSpring(x, { stiffness: 150, damping: 15 });
   const mouseYSpring = useSpring(y, { stiffness: 150, damping: 15 });
-  
   const rotateX = useTransform(mouseYSpring, [-0.5, 0.5], ["12deg", "-12deg"]);
   const rotateY = useTransform(mouseXSpring, [-0.5, 0.5], ["-12deg", "12deg"]);
   const brightness = useTransform(mouseXSpring, [-0.5, 0, 0.5], [0.9, 1, 1.1]);
@@ -122,12 +123,8 @@ const TiltCard = ({
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!cardRef.current) return;
     const rect = cardRef.current.getBoundingClientRect();
-    const width = rect.width;
-    const height = rect.height;
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
-    x.set(mouseX / width - 0.5);
-    y.set(mouseY / height - 0.5);
+    x.set((e.clientX - rect.left) / rect.width - 0.5);
+    y.set((e.clientY - rect.top) / rect.height - 0.5);
   };
   
   const handleMouseLeave = () => {
@@ -148,7 +145,7 @@ const TiltCard = ({
       onMouseLeave={handleMouseLeave}
       onClick={onClick}
       role="button"
-      aria-label={`View details for project ${project.title}`}
+      aria-label={`View details for ${project.title}`}
     >
       <motion.div
         className="relative h-full bg-gradient-to-br from-card via-card to-card/80 border border-border/40 rounded-2xl overflow-hidden flex flex-col shadow-lg"
@@ -161,55 +158,32 @@ const TiltCard = ({
         whileHover={{ scale: 1.02 }}
         transition={{ duration: 0.2 }}
       >
-        {/* Shine effect */}
         <motion.div
           className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
           style={{
             background: useTransform(
               [mouseXSpring, mouseYSpring],
-              ([latestX, latestY]) => 
-                `radial-gradient(600px circle at ${(Number(latestX) + 0.5) * 100}% ${(Number(latestY) + 0.5) * 100}%, rgba(255,255,255,0.1), transparent 40%)`
+              ([lx, ly]) => `radial-gradient(600px circle at ${(Number(lx)+0.5)*100}% ${(Number(ly)+0.5)*100}%, rgba(255,255,255,0.1), transparent 40%)`
             ),
           }}
         />
 
-        {/* Image */}
         <div className="relative h-56 overflow-hidden bg-secondary/20">
           {project.images && project.images[0] ? (
-            <ImageWithFallback
-              src={project.images[0]}
-              alt={project.title}
-              className="w-full h-full object-cover"
-              style={{ transformStyle: "preserve-3d", translateZ: 20 }}
-            />
+            <ImageWithFallback src={project.images[0]} alt={project.title} className="w-full h-full object-cover" style={{ transformStyle: "preserve-3d", translateZ: 20 }} />
           ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <ImageOff className="text-muted-foreground/30" size={32} />
-            </div>
+            <div className="w-full h-full flex items-center justify-center"><ImageOff className="text-muted-foreground/30" size={32} /></div>
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-card via-card/20 to-transparent" />
-          
-          <motion.span
-            className="absolute top-3 left-3 text-[10px] font-bold text-accent bg-background/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-accent/20 uppercase tracking-tighter"
-            style={{ translateZ: 40 }}
-          >
-            {project.type}
-          </motion.span>
+          <motion.span className="absolute top-3 left-3 text-[10px] font-bold text-accent bg-background/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-accent/20 uppercase tracking-tighter" style={{ translateZ: 40 }}>{project.type}</motion.span>
         </div>
         
-        {/* Content */}
         <div className="p-5 flex-grow flex flex-col" style={{ transformStyle: "preserve-3d" }}>
-          <motion.h3 className="text-xl font-bold mb-2 group-hover:text-accent transition-colors duration-300" style={{ translateZ: 30 }}>
-            {project.title}
-          </motion.h3>
-          <motion.p className="text-muted-foreground text-sm leading-relaxed mb-4 line-clamp-2" style={{ translateZ: 20 }}>
-            {project.description}
-          </motion.p>
+          <motion.h3 className="text-xl font-bold mb-2 group-hover:text-accent transition-colors duration-300" style={{ translateZ: 30 }}>{project.title}</motion.h3>
+          <motion.p className="text-muted-foreground text-sm leading-relaxed mb-4 line-clamp-2" style={{ translateZ: 20 }}>{project.description}</motion.p>
           <motion.div className="flex flex-wrap gap-2 mt-auto" style={{ translateZ: 25 }}>
-            {project.stats.slice(0, 2).map((stat) => (
-              <span key={stat} className="text-[10px] px-3 py-1 bg-background/60 border border-border/50 rounded-full text-muted-foreground uppercase font-semibold">
-                {stat}
-              </span>
+            {project.stats.slice(0, 2).map((s) => (
+              <span key={s} className="text-[10px] px-3 py-1 bg-background/60 border border-border/50 rounded-full text-muted-foreground uppercase font-semibold">{s}</span>
             ))}
           </motion.div>
         </div>
@@ -231,9 +205,7 @@ const Portfolio = () => {
 
   const [projects, setProjects] = useState<Project[]>(() => {
     const saved = localStorage.getItem("cached_projects");
-    if (saved) {
-      try { return [...JSON.parse(saved), ...initialProjects]; } catch (e) { return initialProjects; }
-    }
+    if (saved) { try { return [...JSON.parse(saved), ...initialProjects]; } catch (e) { return initialProjects; } }
     return initialProjects;
   });
 
@@ -245,7 +217,6 @@ const Portfolio = () => {
     const fetchProjects = async () => {
       try {
         const res = await fetch(`${API_URL}/api/projects`);
-        if (!res.ok) throw new Error("Failed to fetch");
         const data = await res.json();
         if (Array.isArray(data)) {
           localStorage.setItem("cached_projects", JSON.stringify(data));
@@ -256,16 +227,8 @@ const Portfolio = () => {
     fetchProjects();
   }, []);
 
-  const openModal = (project: Project) => {
-    setSelectedProject(project);
-    setModalOpen(true);
-    document.body.style.overflow = "hidden";
-  };
-
-  const closeModal = () => {
-    setModalOpen(false);
-    document.body.style.overflow = "unset";
-  };
+  const openModal = (p: Project) => { setSelectedProject(p); setModalOpen(true); document.body.style.overflow = "hidden"; };
+  const closeModal = () => { setModalOpen(false); document.body.style.overflow = "unset"; };
 
   return (
     <section id="work" className="py-32 px-6 relative overflow-hidden bg-secondary/20">
@@ -274,63 +237,28 @@ const Portfolio = () => {
           <span className="inline-flex items-center gap-2 text-accent text-sm font-medium mb-4 tracking-wider uppercase"><Sparkles size={16} />Portfolio</span>
           <h2 className="text-6xl md:text-8xl font-bold">Recent Work</h2>
         </motion.div>
-
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto auto-rows-fr">
-          {projects.map((project, index) => (
-            <TiltCard key={project._id || `${project.title}-${index}`} project={project} onClick={() => openModal(project)} />
-          ))}
+          {projects.map((p, i) => ( <TiltCard key={p._id || i} project={p} onClick={() => openModal(p)} /> ))}
         </div>
       </div>
-
       <AnimatePresence>
         {modalOpen && selectedProject && (
-          <motion.div
-            className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-[100] p-4 md:p-8"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={closeModal}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="project-modal-title"
-          >
-            <motion.div
-              className="bg-card rounded-3xl p-6 md:p-10 max-w-5xl w-full relative overflow-y-auto max-h-[95vh] border border-border/50 shadow-2xl"
-              initial={{ scale: 0.9, opacity: 0, y: 30 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 30 }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <button
-                className="absolute top-4 right-4 text-muted-foreground hover:text-foreground bg-background/50 rounded-full p-2 z-[110] border border-border/50 cursor-target"
-                onClick={closeModal}
-                aria-label="Close project details"
-              >
-                <X size={24} />
-              </button>
+          <motion.div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-[100] p-4 md:p-8" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={closeModal} role="dialog" aria-modal="true" aria-labelledby="p-title">
+            <motion.div className="bg-card rounded-3xl p-6 md:p-10 max-w-5xl w-full relative overflow-y-auto max-h-[95vh] border border-border/50 shadow-2xl" initial={{ scale: 0.9, opacity: 0, y: 30 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 30 }} onClick={(e) => e.stopPropagation()}>
+              <button className="absolute top-4 right-4 text-muted-foreground hover:text-foreground bg-background/50 rounded-full p-2 z-[110] border border-border/50 cursor-target" onClick={closeModal} aria-label="Close"><X size={24} /></button>
               <div className="flex flex-col gap-8">
                 <div>
                   <span className="inline-block text-sm text-accent font-semibold tracking-wide uppercase mb-3 px-4 py-1.5 bg-accent/10 rounded-full border border-accent/20">{selectedProject.type}</span>
-                  <h3 id="project-modal-title" className="text-4xl md:text-5xl font-bold mb-6">{selectedProject.title}</h3>
+                  <h3 id="p-title" className="text-4xl md:text-5xl font-bold mb-6">{selectedProject.title}</h3>
                   <p className="text-muted-foreground mb-8 text-lg leading-relaxed max-w-3xl">{selectedProject.description}</p>
-                  <div className="flex flex-wrap gap-3 mb-8">
-                    {selectedProject.stats.map((stat) => (
-                      <span key={stat} className="px-5 py-2 bg-background/50 border border-border/50 text-sm rounded-2xl font-medium">{stat}</span>
-                    ))}
-                  </div>
+                  <div className="flex flex-wrap gap-3 mb-8">{selectedProject.stats.map((s) => ( <span key={s} className="px-5 py-2 bg-background/50 border border-border/50 text-sm rounded-2xl font-medium">{s}</span> ))}</div>
                 </div>
-
                 {selectedProject.images && selectedProject.images.length > 0 && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {selectedProject.images.map((img, i) => (
                       <div key={i} className={`relative group cursor-zoom-in overflow-hidden rounded-2xl border border-border/50 cursor-target ${i === 0 && selectedProject.images!.length % 2 !== 0 ? 'md:col-span-2' : ''}`} onClick={() => setViewerImage(img)}>
-                        <ImageWithFallback src={img} alt={`${selectedProject.title} ${i + 1}`} className="w-full h-full object-cover min-h-[300px] max-h-[500px] transition-transform duration-500 group-hover:scale-105" />
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                          <div className="bg-background/80 backdrop-blur-md px-6 py-3 rounded-full flex items-center gap-2 font-bold shadow-xl border border-border/50">
-                            <Maximize2 size={20} className="text-accent" />
-                            View Image
-                          </div>
-                        </div>
+                        <ImageWithFallback src={img} alt={`${selectedProject.title} ${i+1}`} className="w-full h-full object-cover min-h-[300px] max-h-[500px] transition-transform duration-500 group-hover:scale-105" />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"><div className="bg-background/80 backdrop-blur-md px-6 py-3 rounded-full flex items-center gap-2 font-bold shadow-xl border border-border/50"><Maximize2 size={20} className="text-accent" />View Image</div></div>
                       </div>
                     ))}
                   </div>
@@ -340,15 +268,7 @@ const Portfolio = () => {
           </motion.div>
         )}
       </AnimatePresence>
-
-      <AnimatePresence>
-        {viewerImage && (
-          <ImageViewer
-            src={viewerImage}
-            onClose={() => setViewerImage(null)}
-          />
-        )}
-      </AnimatePresence>
+      <AnimatePresence>{viewerImage && ( <ImageViewer src={viewerImage} onClose={() => setViewerImage(null)} /> )}</AnimatePresence>
     </section>
   );
 };
