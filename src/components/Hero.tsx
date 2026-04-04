@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useContext } from "react";
 import LiquidEther from "./LiquidEther";
 import { motion } from "framer-motion";
 import ParallaxBackground from "./ParallaxBackground";
 import CardSwap, { Card } from "./CardSwap";
 import OrbitImages from "./OrbitImages";
 import { API_URL } from "@/config";
+import { LoadingContext } from "@/App"; // Import the LoadingContext
 
 // Local fallbacks for the orbit
 import halo1 from "@/assets/halo1.png";
@@ -15,33 +16,48 @@ import plug from "@/assets/plug.png";
 import mm from "@/assets/mm1.png";
 
 const Hero = () => {
+  const { isLoading, setIsLoading } = useContext(LoadingContext);
   const [orbitImages, setOrbitImages] = useState<string[]>([halo1, npc, gui, crate, plug, mm]);
+  const [dataLoaded, setDataLoaded] = useState(false);
 
   useEffect(() => {
     const fetchRandomImages = async () => {
       try {
-        const res = await fetch(`${API_URL}/api/projects?t=${Date.now()}`);
-        const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          // Extract all images from all projects and flatten them
-          const allImages = data.flatMap(p => p.images || []).filter(Boolean);
-          if (allImages.length > 0) {
-            const shuffled = allImages.sort(() => 0.5 - Math.random());
-            // Combine DB images with local fallbacks to ensure a full orbit
-            setOrbitImages(prev => {
-                const combined = [...shuffled.slice(0, 6), ...prev];
-                // Use a Set to ensure unique images and limit to 8
-                const unique = Array.from(new Set(combined));
-                return unique.slice(0, 8);
-            });
-          }
+        const projectsRes = await fetch(`${API_URL}/api/projects?t=${Date.now()}`);
+        const projectsData = await projectsRes.json();
+        const allProjectImages = projectsData.flatMap((p: any) => p.images || []).filter(Boolean);
+
+        const reviewsRes = await fetch(`${API_URL}/api/reviews?t=${Date.now()}`);
+        const reviewsData = await reviewsRes.json();
+        const allReviewImages = reviewsData.map((r: any) => r.image).filter(Boolean);
+
+        const combinedImages = [...allProjectImages, ...allReviewImages];
+        const uniqueImages = Array.from(new Set(combinedImages));
+
+        const orbitDisplayImages = uniqueImages.slice(0, 8);
+        if (orbitDisplayImages.length < 8) {
+          orbitDisplayImages.push(halo1);
         }
+        setOrbitImages(orbitDisplayImages);
+        setDataLoaded(true);
       } catch (error) {
         console.error("Failed to fetch orbit images:", error);
+        setDataLoaded(true); // Still allow to proceed even if fetch fails
       }
     };
     fetchRandomImages();
   }, []);
+
+  useEffect(() => {
+    if (dataLoaded) {
+      // Ensure isLoading is true for a minimum of 3 seconds
+      const minAnimationTime = setTimeout(() => {
+        setIsLoading(false);
+      }, 3000); // Minimum 3 seconds of loading animation
+
+      return () => clearTimeout(minAnimationTime);
+    }
+  }, [dataLoaded, setIsLoading]);
 
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-background">
@@ -64,7 +80,7 @@ const Hero = () => {
         />
       </div>
 
-      {/* Orbit Images - Increased visibility and better positioning */}
+      {/* Orbit Images - Dynamic speed based on loading state */}
       <div className="absolute inset-0 z-[10] pointer-events-none opacity-80 scale-110 flex items-center justify-center">
         <div className="w-full max-w-7xl aspect-square md:aspect-video">
            <OrbitImages
@@ -73,7 +89,10 @@ const Hero = () => {
               radiusX={600}
               radiusY={150}
               rotation={-10}
-              duration={30}
+              initialDuration={0.5} // Initial fast spin duration
+              finalDuration={30}   // Final slow spin duration
+              durationTransition={2} // Duration for the speed transition
+              isLoading={isLoading} // Pass isLoading state
               itemSize={120}
               responsive={true}
               radius={250}
@@ -89,11 +108,24 @@ const Hero = () => {
       <div className="absolute top-0 left-0 right-0 h-40 bg-gradient-to-b from-background via-background/80 to-transparent z-[1] pointer-events-none" />
       <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-background via-background/80 to-transparent z-[1] pointer-events-none" />
 
+      {/* Loading Text */}
+      {isLoading && (
+        <motion.h1
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          transition={{ duration: 0.5 }}
+          className="absolute text-4xl font-bold text-foreground z-[20]"
+        >
+          Loading...
+        </motion.h1>
+      )}
+
       {/* Content */}
       <motion.div 
         initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 1, ease: "easeOut", delay: 0.2 }}
+        animate={{ opacity: isLoading ? 0 : 1, y: isLoading ? 30 : 0 }}
+        transition={{ duration: 1, ease: "easeOut", delay: isLoading ? 0 : 0.2 }}
         className="relative z-[15] text-center px-6 pt-20"
       >
         <h1 className="text-[12vw] md:text-[10vw] font-bold tracking-tighter leading-none mb-12 text-transparent bg-clip-text bg-gradient-to-b from-white to-white/50 drop-shadow-2xl">

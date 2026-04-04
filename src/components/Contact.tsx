@@ -24,7 +24,7 @@ const Contact = () => {
             href="https://discord.com/channels/915849624718299166/991478519337066556/1426817639350665309"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-accent hover:underline"
+            className="text-accent hover:underline cursor-target"
           >
             Order through Arcane Studios
           </a>
@@ -32,7 +32,7 @@ const Contact = () => {
 
           <Button
           size="lg"
-          className="bg-accent text-accent-foreground hover:bg-accent/90 text-lg px-12 py-6 h-auto"
+          className="bg-accent text-accent-foreground hover:bg-accent/90 text-lg px-12 py-6 h-auto cursor-target"
           onClick={() => setIsOpen(true)}
           >
           Get In Touch
@@ -41,43 +41,43 @@ const Contact = () => {
 
         {/* Popup Modal */}
         {isOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-            <div className="bg-background border border-border rounded-xl p-8 max-w-md w-full relative shadow-lg">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm">
+            <div className="bg-background border border-border rounded-2xl p-8 max-w-md w-full relative shadow-2xl">
               <button
-                className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"
+                className="absolute top-4 right-4 text-muted-foreground hover:text-foreground cursor-target"
                 onClick={() => setIsOpen(false)}
               >
                 <X size={24} />
               </button>
-              <h3 className="text-2xl font-bold mb-4">Contact Me</h3>
-              <ul className="space-y-3 text-lg text-muted-foreground">
-                <li>
+              <h3 className="text-3xl font-bold mb-6">Contact Me</h3>
+              <ul className="space-y-4 text-lg text-muted-foreground text-left">
+                <li className="flex items-center gap-2">
                   📧 Email:{" "}
                   <a
                     href="mailto:Wolverw0lv7@gmail.com"
-                    className="text-accent hover:underline"
+                    className="text-accent hover:underline cursor-target"
                   >
                     Email Me
                   </a>
                 </li>
-                <li>
+                <li className="flex items-center gap-2">
                   💬 Discord:{" "}
                   <a
                     href="https://discord.gg/cCsaBwVaqb"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-accent hover:underline"
+                    className="text-accent hover:underline cursor-target"
                   >
                     wolver_wol
                   </a>
                 </li>
-                <li>
+                <li className="flex items-center gap-2">
                   🌐 Community:{" "}
                   <a
                     href="https://discord.gg/cCsaBwVaqb"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-accent hover:underline"
+                    className="text-accent hover:underline cursor-target"
                   >
                     Join my community
                   </a>

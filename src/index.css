@@ -2,41 +2,53 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
-
 @layer base {
   :root {
     --background: 0 0% 0%;
     --foreground: 0 0% 100%;
-
     --card: 0 0% 5%;
     --card-foreground: 0 0% 100%;
-
     --popover: 0 0% 5%;
     --popover-foreground: 0 0% 100%;
-
     --primary: 0 0% 100%;
     --primary-foreground: 0 0% 0%;
-
     --secondary: 0 0% 10%;
     --secondary-foreground: 0 0% 100%;
-
     --muted: 0 0% 15%;
     --muted-foreground: 0 0% 60%;
-
     --accent: 351 100% 71%;
     --accent-foreground: 0 0% 0%;
-
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
-
     --border: 0 0% 15%;
     --input: 0 0% 15%;
     --ring: 0 0% 100%;
-
     --radius: 0.5rem;
+  }
+
+  /* Hide scrollbar globally */
+  html, body {
+    overflow: hidden;
+    height: 100%;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+    cursor: none !important;
+  }
+
+  ::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
+
+  /* Ensure standard links and buttons also hide cursor */
+  a, button, [role="button"], .cursor-target {
+    cursor: none !important;
+  }
+
+  .main-scroll-container {
+    height: 100%;
+    width: 100%;
   }
 }
 

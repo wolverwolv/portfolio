@@ -1,7 +1,6 @@
 import { useMemo, useEffect, useRef, useState } from 'react';
-import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
+import { motion, useMotionValue, useTransform, useAnimationFrame, animate } from 'framer-motion';
 import './OrbitImages.css';
-import { ImageWithFallback } from './Portfolio'; // Import ImageWithFallback
 
 function generateEllipsePath(cx: number, cy: number, rx: number, ry: number) {
   return `M ${cx - rx} ${cy} A ${rx} ${ry} 0 1 0 ${cx + rx} ${cy} A ${rx} ${ry} 0 1 0 ${cx - rx} ${cy}`;
@@ -36,7 +35,7 @@ function generateStarPath(cx: number, cy: number, outerR: number, innerR: number
     const angle = i * step - Math.PI / 2;
     const x = cx + r * Math.cos(angle);
     const y = cy + r * Math.sin(angle);
-    path += i === 0 ? `M ${x} ${y}` : `L ${x} ${y}`;
+    path += i === 0 ? `M ${x} ${y}` : ` L ${x} ${y}`;
   }
   return path + ' Z';
 }
@@ -73,19 +72,18 @@ function OrbitItem({ item, index, totalItems, path, itemSize, rotation, progress
   const itemOffset = fill ? (index / totalItems) * 100 : 0;
   const [isGlow, setIsGlow] = useState(false);
 
-  const offsetDistance = useTransform(progress, (p: any) => {
-    const offset = (((p + itemOffset) % 100) + 100) % 100;
-    return `${offset}%`;
+  // We wrap the progress to 0-100% range
+  const offsetDistance = useTransform(progress, (p: number) => {
+    return `${((p + itemOffset) % 100 + 100) % 100}%`;
   });
 
-  // Random glow effect
   useEffect(() => {
     const interval = setInterval(() => {
-      if (Math.random() > 0.8) { // 20% chance to glow
+      if (Math.random() > 0.8) {
         setIsGlow(true);
-        setTimeout(() => setIsGlow(false), 2000); // Glow for 2 seconds
+        setTimeout(() => setIsGlow(false), 2000);
       }
-    }, 3000); // Check every 3 seconds
+    }, 3000);
     return () => clearInterval(interval);
   }, []);
 
@@ -118,7 +116,10 @@ export default function OrbitImages({
   starPoints = 5,
   starInnerRatio = 0.5,
   rotation = -8,
-  duration = 40,
+  initialSpeed = 3.0, // Progress units per frame
+  finalSpeed = 0.05,   // Progress units per frame
+  transitionDuration = 3, // Seconds to slow down
+  isLoading = true,
   itemSize = 64,
   direction = 'normal',
   fill = true,
@@ -128,13 +129,16 @@ export default function OrbitImages({
   showPath = false,
   pathColor = 'rgba(255,255,255,0.05)',
   pathWidth = 1,
-  easing = 'linear',
   paused = false,
   centerContent = null,
   responsive = false,
 }: any) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
+
+  // Motion values for smooth velocity-based animation
+  const progress = useMotionValue(0);
+  const velocity = useMotionValue(initialSpeed);
 
   const designCenterX = baseWidth / 2;
   const designCenterY = baseWidth / 2;
@@ -167,27 +171,39 @@ export default function OrbitImages({
     return () => observer.disconnect();
   }, [responsive, baseWidth]);
 
-  const progress = useMotionValue(0);
-
+  // Handle the velocity transition
   useEffect(() => {
+    if (!isLoading) {
+      animate(velocity, finalSpeed, {
+        duration: transitionDuration,
+        ease: [0.4, 0, 0.2, 1] // Custom smooth ease
+      });
+    } else {
+      velocity.set(initialSpeed);
+    }
+  }, [isLoading, initialSpeed, finalSpeed, transitionDuration, velocity]);
+
+  // Velocity-based animation loop (Frame-perfect smoothness)
+  useAnimationFrame((time, delta) => {
     if (paused) return;
-    const controls = animate(progress, direction === 'reverse' ? -100 : 100, {
-      duration,
-      ease: easing as any,
-      repeat: Infinity,
-      repeatType: 'loop',
-    });
-    return () => controls.stop();
-  }, [progress, duration, easing, direction, paused]);
+
+    // Calculate movement based on velocity and delta time for consistency
+    // delta is in ms, we want velocity to be "units per frame" roughly at 60fps
+    const moveAmount = velocity.get() * (delta / 16.67);
+    const multiplier = direction === 'reverse' ? -1 : 1;
+
+    progress.set(progress.get() + (moveAmount * multiplier));
+  });
 
   const containerWidth = responsive ? '100%' : (typeof width === 'number' ? width : '100%');
   const containerHeight = responsive ? 'auto' : (typeof height === 'number' ? height : (typeof width === 'number' ? width : 'auto'));
 
   const items = images.map((src: string, index: number) => (
-    <ImageWithFallback
+    <img
       key={src}
       src={src}
       alt={`${altPrefix} ${index + 1}`}
+      draggable={false}
       className="orbit-image"
     />
   ));
