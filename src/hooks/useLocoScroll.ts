@@ -1,13 +1,12 @@
 import { useEffect, useRef } from 'react';
 import LocomotiveScroll from 'locomotive-scroll';
-import 'locomotive-scroll/dist/locomotive-scroll.css'; // Import the CSS
+import 'locomotive-scroll/dist/locomotive-scroll.css';
 
 interface LocoScrollOptions {
   smooth?: boolean;
   lerp?: number;
   multiplier?: number;
   class?: string;
-  // Add other options as needed
 }
 
 export const useLocoScroll = (start: boolean, options?: LocoScrollOptions) => {
@@ -17,20 +16,26 @@ export const useLocoScroll = (start: boolean, options?: LocoScrollOptions) => {
   useEffect(() => {
     if (!start) return;
 
+    // Detect mobile devices
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+    // If it's mobile, we don't initialize Locomotive Scroll to allow native touch scrolling
+    if (isMobile) {
+      console.log("Mobile detected, using native scrolling.");
+      return;
+    }
+
     const scrollElement = scrollRef.current;
 
     if (scrollElement) {
       ls.current = new LocomotiveScroll({
         el: scrollElement,
         smooth: true,
-        lerp: 0.08, // Adjust for desired smoothness
+        lerp: 0.08,
         multiplier: 1,
         class: 'is-reveal',
         ...options,
       });
-
-      // Optional: Update scroll on image load or content change
-      // ls.current.update();
 
       return () => {
         if (ls.current) {
