@@ -23,11 +23,23 @@ mongoClient.connect()
   })
   .catch(err => console.error('MongoDB connection error:', err));
 
-// API Routes
+// API Routes with Pagination
 app.get('/api/reviews', async (req, res) => {
   try {
     if (!db) return res.status(503).json({ error: 'DB connecting...' });
-    const reviews = await db.collection('reviews').find().sort({ createdAt: -1 }).toArray();
+    const limit = parseInt(req.query._limit as string) || 0;
+    const skip = parseInt(req.query._skip as string) || 0;
+
+    let query = db.collection('reviews').find().sort({ createdAt: -1 });
+
+    if (skip > 0) {
+      query = query.skip(skip);
+    }
+    if (limit > 0) {
+      query = query.limit(limit);
+    }
+
+    const reviews = await query.toArray();
     res.json(reviews);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -35,7 +47,19 @@ app.get('/api/reviews', async (req, res) => {
 app.get('/api/projects', async (req, res) => {
   try {
     if (!db) return res.status(503).json({ error: 'DB connecting...' });
-    const projects = await db.collection('projects').find().sort({ createdAt: -1 }).toArray();
+    const limit = parseInt(req.query._limit as string) || 0;
+    const skip = parseInt(req.query._skip as string) || 0;
+
+    let query = db.collection('projects').find().sort({ createdAt: -1 });
+
+    if (skip > 0) {
+      query = query.skip(skip);
+    }
+    if (limit > 0) {
+      query = query.limit(limit);
+    }
+
+    const projects = await query.toArray();
     res.json(projects);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

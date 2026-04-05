@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from "react";
 import { motion, useMotionValue, useSpring, useTransform, AnimatePresence } from "framer-motion";
-import { Star, Quote, Maximize2, X } from "lucide-react";
+import { Star, Quote, Maximize2, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import r1 from "@/assets/r1.png";
 import r2 from "@/assets/r2.png";
@@ -128,7 +128,7 @@ const ReviewCard = ({ review, onImageClick }: { review: Review, onImageClick: (s
 };
 
 const Reviews = () => {
-  const [visibleCount, setVisibleCount] = useState(3);
+  const REVIEWS_PER_LOAD = 3;
   const initialReviews: Review[] = [
     { name: "unipotatoo", role: "client", image: r1, rating: 5, date: "6 months ago" },
     { name: "kafer", role: "client", image: r2, rating: 5, date: "1 month ago" },
@@ -138,22 +138,39 @@ const Reviews = () => {
   ];
 
   const [reviews, setReviews] = useState<Review[]>(initialReviews);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  const fetchReviews = async () => {
+  const fetchReviews = async (skip: number) => {
+    setLoadingMore(true);
     try {
-      const res = await fetch(`${API_URL}/api/reviews?t=${Date.now()}`);
+      const res = await fetch(`${API_URL}/api/reviews?_limit=${REVIEWS_PER_LOAD}&_skip=${skip}&t=${Date.now()}`);
       const data = await res.json();
       if (Array.isArray(data)) {
-        setReviews([...data, ...initialReviews]);
+        if (skip === 0) {
+          setReviews([...data, ...initialReviews]);
+        } else {
+          setReviews(prev => [...prev, ...data]);
+        }
+        setHasMore(data.length === REVIEWS_PER_LOAD);
+      } else {
+        setHasMore(false);
       }
-    } catch (error) { console.error("Failed to fetch reviews:", error); }
+    } catch (error) {
+      console.error("Failed to fetch reviews:", error);
+      setHasMore(false);
+    } finally {
+      setLoadingMore(false);
+    }
   };
 
   useEffect(() => {
-    fetchReviews();
-    const interval = setInterval(fetchReviews, 60000);
-    return () => clearInterval(interval);
+    fetchReviews(0); // Initial fetch
   }, []);
+
+  const handleLoadMore = () => {
+    fetchReviews(reviews.length - initialReviews.length);
+  };
 
   const [viewerImage, setViewerImage] = useState<string | null>(null);
 
@@ -174,21 +191,33 @@ const Reviews = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto auto-rows-fr">
-          {reviews.slice(0, visibleCount).map((review, index) => (
+          {reviews.map((review, index) => (
             <ReviewCard key={review._id || index} review={review} onImageClick={(src) => setViewerImage(src)} />
           ))}
         </div>
 
-        {visibleCount < reviews.length && (
+        {hasMore && (
           <div className="text-center mt-16">
-            <Button onClick={() => setVisibleCount(v => v + 3)} size="lg" variant="outline" className="min-w-[200px]">Load More Reviews</Button>
+            <Button
+              onClick={handleLoadMore}
+              disabled={loadingMore}
+              size="lg"
+              variant="outline"
+              className="min-w-[200px] cursor-target"
+            >
+              {loadingMore ? <Loader2 className="animate-spin mr-2" /> : null}
+              {loadingMore ? "Loading..." : "Load More Reviews"}
+            </Button>
           </div>
         )}
       </div>
 
       <AnimatePresence>
         {viewerImage && (
-          <ImageViewer src={viewerImage} onClose={() => setViewerImage(null)} />
+          <ImageViewer
+            src={viewerImage}
+            onClose={() => setViewerImage(null)}
+          />
         )}
       </AnimatePresence>
     </section>

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from "framer-motion";
 import { X, Sparkles, ExternalLink, ImageOff, Loader2, Maximize2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 // Import images (local assets)
 import halo1 from "@/assets/halo1.png";
@@ -45,6 +46,7 @@ const ImageViewer = ({ src, onClose }: { src: string; onClose: () => void }) => 
       <motion.button
         className="absolute top-6 right-6 text-white hover:text-accent bg-white/10 p-2 rounded-full backdrop-blur-md transition-colors z-[210]"
         onClick={onClose}
+        aria-label="Close image viewer"
       >
         <X size={32} />
       </motion.button>
@@ -53,6 +55,7 @@ const ImageViewer = ({ src, onClose }: { src: string; onClose: () => void }) => 
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
         src={src}
+        alt="Full screen view"
         className="max-w-full max-h-full object-contain rounded-lg shadow-2xl cursor-target"
         onClick={(e) => e.stopPropagation()}
       />
@@ -73,6 +76,8 @@ export const ImageWithFallback = ({ src, alt, className, ...props }: any) => {
     );
   }
 
+  const finalSrc = src;
+
   return (
     <div className={`relative overflow-hidden ${className}`}>
       {loading && (
@@ -81,14 +86,11 @@ export const ImageWithFallback = ({ src, alt, className, ...props }: any) => {
         </div>
       )}
       <img
-        src={src}
+        src={finalSrc}
         alt={alt}
         className={`${className} ${loading ? 'opacity-0 scale-105' : 'opacity-100 scale-100'} transition-all duration-500 ease-out`}
         onLoad={() => setLoading(false)}
-        onError={() => {
-          console.error(`Failed to load image: ${typeof src === 'string' ? src.substring(0, 50) : 'object'}`);
-          setError(true);
-        }}
+        onError={() => setError(true)}
         {...props}
       />
     </div>
@@ -124,24 +126,41 @@ const TiltCard = ({ project, onClick }: { project: Project; onClick: () => void 
       onMouseMove={handleMouseMove}
       onMouseLeave={() => { x.set(0); y.set(0); }}
       onClick={onClick}
+      role="button"
+      aria-label={`View details for ${project.title}`}
     >
       <motion.div
         className="relative h-full bg-gradient-to-br from-card via-card to-card/80 border border-border/40 rounded-2xl overflow-hidden flex flex-col shadow-lg"
         style={{ rotateX, rotateY, filter: useTransform(brightness, (b) => `brightness(${b})`) }}
       >
+        <motion.div
+          className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+          style={{
+            background: useTransform(
+              [mouseXSpring, mouseYSpring],
+              ([lx, ly]) => `radial-gradient(600px circle at ${(Number(lx)+0.5)*100}% ${(Number(ly)+0.5)*100}%, rgba(255,255,255,0.1), transparent 40%)`
+            ),
+          }}
+        />
+
         <div className="relative h-56 overflow-hidden bg-secondary/20">
-          <ImageWithFallback src={project.images?.[0]} alt={project.title} className="w-full h-full object-cover" />
+          {project.images && project.images[0] ? (
+            <ImageWithFallback src={project.images[0]} alt={project.title} className="w-full h-full object-cover" style={{ transformStyle: "preserve-3d", translateZ: 20 }} />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center"><ImageOff className="text-muted-foreground/30" size={32} /></div>
+          )}
           <div className="absolute inset-0 bg-gradient-to-t from-card via-card/20 to-transparent" />
-          <span className="absolute top-3 left-3 text-[10px] font-bold text-accent bg-background/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-accent/20 uppercase">{project.type}</span>
+          <motion.span className="absolute top-3 left-3 text-[10px] font-bold text-accent bg-background/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-accent/20 uppercase tracking-tighter" style={{ translateZ: 40 }}>{project.type}</motion.span>
         </div>
-        <div className="p-5 flex-grow flex flex-col">
-          <h3 className="text-xl font-bold mb-2 group-hover:text-accent transition-colors">{project.title}</h3>
-          <p className="text-muted-foreground text-sm leading-relaxed mb-4 line-clamp-2">{project.description}</p>
-          <div className="flex flex-wrap gap-2 mt-auto">
+
+        <div className="p-5 flex-grow flex flex-col" style={{ transformStyle: "preserve-3d" }}>
+          <motion.h3 className="text-xl font-bold mb-2 group-hover:text-accent transition-colors duration-300" style={{ translateZ: 30 }}>{project.title}</motion.h3>
+          <motion.p className="text-muted-foreground text-sm leading-relaxed mb-4 line-clamp-2" style={{ translateZ: 20 }}>{project.description}</motion.p>
+          <motion.div className="flex flex-wrap gap-2 mt-auto" style={{ translateZ: 25 }}>
             {project.stats.slice(0, 2).map((s) => (
               <span key={s} className="text-[10px] px-3 py-1 bg-background/60 border border-border/50 rounded-full text-muted-foreground uppercase font-semibold">{s}</span>
             ))}
-          </div>
+          </motion.div>
         </div>
       </motion.div>
     </motion.div>
@@ -149,6 +168,7 @@ const TiltCard = ({ project, onClick }: { project: Project; onClick: () => void 
 };
 
 const Portfolio = () => {
+  const PROJECTS_PER_LOAD = 6;
   const initialProjects: Project[] = [
     { title: "HaloFlux Network", type: "Custom Lifesteal Server", description: "LifeSteal setup with economy, custom islands, and 200+ plugins.", stats: ["99.9% Uptime", "Custom Plugins"], images: [halo1, halo2, halo3, halo4] },
     { title: "NPCs", type: "Custom NPCS", description: "Cool NPCs with mythicMobs, Citizens, FancyNPCs etc", stats: ["NPCS with animations"], images: [npc, npc2, npc3] },
@@ -160,22 +180,39 @@ const Portfolio = () => {
   ];
 
   const [projects, setProjects] = useState<Project[]>(initialProjects);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  const fetchProjects = async () => {
+  const fetchProjects = async (skip: number) => {
+    setLoadingMore(true);
     try {
-      const res = await fetch(`${API_URL}/api/projects?t=${Date.now()}`);
+      const res = await fetch(`${API_URL}/api/projects?_limit=${PROJECTS_PER_LOAD}&_skip=${skip}&t=${Date.now()}`);
       const data = await res.json();
       if (Array.isArray(data)) {
-        setProjects([...data, ...initialProjects]);
+        if (skip === 0) { // Initial load
+          setProjects([...data, ...initialProjects]);
+        } else { // Load more
+          setProjects(prev => [...prev, ...data]);
+        }
+        setHasMore(data.length === PROJECTS_PER_LOAD);
+      } else {
+        setHasMore(false);
       }
-    } catch (error) { console.error("Fetch failed:", error); }
+    } catch (error) {
+      console.error("Fetch projects failed:", error);
+      setHasMore(false);
+    } finally {
+      setLoadingMore(false);
+    }
   };
 
   useEffect(() => {
-    fetchProjects();
-    const interval = setInterval(fetchProjects, 60000);
-    return () => clearInterval(interval);
+    fetchProjects(0); // Initial fetch
   }, []);
+
+  const handleLoadMore = () => {
+    fetchProjects(projects.length - initialProjects.length); // Skip already loaded DB projects
+  };
 
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -202,12 +239,26 @@ const Portfolio = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto auto-rows-fr">
           {projects.map((p, i) => ( <TiltCard key={p._id || i} project={p} onClick={() => openModal(p)} /> ))}
         </div>
+        {hasMore && (
+          <div className="text-center mt-16">
+            <Button
+              onClick={handleLoadMore}
+              disabled={loadingMore}
+              size="lg"
+              variant="outline"
+              className="min-w-[200px] cursor-target"
+            >
+              {loadingMore ? <Loader2 className="animate-spin mr-2" /> : null}
+              {loadingMore ? "Loading..." : "Load More Projects"}
+            </Button>
+          </div>
+        )}
       </div>
       <AnimatePresence>
         {modalOpen && selectedProject && (
           <motion.div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-[100] p-4 md:p-8" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={closeModal}>
             <motion.div className="bg-card rounded-3xl p-6 md:p-10 max-w-5xl w-full relative overflow-y-auto max-h-[95vh] border border-border/50 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-              <button className="absolute top-4 right-4 text-muted-foreground hover:text-foreground bg-background/50 rounded-full p-2 z-[110] cursor-target" onClick={closeModal}><X size={24} /></button>
+              <button className="absolute top-4 right-4 text-muted-foreground hover:text-foreground bg-background/50 rounded-full p-2 z-[110] cursor-target" onClick={closeModal} aria-label="Close"><X size={24} /></button>
               <div className="flex flex-col gap-8">
                 <div>
                   <span className="inline-block text-sm text-accent font-semibold tracking-wide uppercase mb-3 px-4 py-1.5 bg-accent/10 rounded-full border border-accent/20">{selectedProject.type}</span>

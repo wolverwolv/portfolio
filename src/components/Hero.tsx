@@ -5,7 +5,7 @@ import ParallaxBackground from "./ParallaxBackground";
 import CardSwap, { Card } from "./CardSwap";
 import OrbitImages from "./OrbitImages";
 import { API_URL } from "@/config";
-import { LoadingContext } from "@/App"; // Import the LoadingContext
+import { LoadingContext } from "@/App";
 
 // Local fallbacks for the orbit
 import halo1 from "@/assets/halo1.png";
@@ -23,26 +23,26 @@ const Hero = () => {
   useEffect(() => {
     const fetchRandomImages = async () => {
       try {
-        const projectsRes = await fetch(`${API_URL}/api/projects?t=${Date.now()}`);
+        // Only fetch a small number of projects for the hero orbit
+        const projectsRes = await fetch(`${API_URL}/api/projects?_limit=6&t=${Date.now()}`);
         const projectsData = await projectsRes.json();
-        const allProjectImages = projectsData.flatMap((p: any) => p.images || []).filter(Boolean);
 
-        const reviewsRes = await fetch(`${API_URL}/api/reviews?t=${Date.now()}`);
-        const reviewsData = await reviewsRes.json();
-        const allReviewImages = reviewsData.map((r: any) => r.image).filter(Boolean);
+        if (Array.isArray(projectsData) && projectsData.length > 0) {
+          const allProjectImages = projectsData.flatMap((p: any) => p.images || []).filter(Boolean);
+          const uniqueImages = Array.from(new Set(allProjectImages));
+          const orbitDisplayImages = uniqueImages.slice(0, 8);
 
-        const combinedImages = [...allProjectImages, ...allReviewImages];
-        const uniqueImages = Array.from(new Set(combinedImages));
-
-        const orbitDisplayImages = uniqueImages.slice(0, 8);
-        if (orbitDisplayImages.length < 8) {
-          orbitDisplayImages.push(halo1);
+          if (orbitDisplayImages.length > 0) {
+            setOrbitImages(prev => {
+                const combined = [...orbitDisplayImages, ...prev];
+                return Array.from(new Set(combined)).slice(0, 8);
+            });
+          }
         }
-        setOrbitImages(orbitDisplayImages);
         setDataLoaded(true);
       } catch (error) {
         console.error("Failed to fetch orbit images:", error);
-        setDataLoaded(true); // Still allow to proceed even if fetch fails
+        setDataLoaded(true);
       }
     };
     fetchRandomImages();
@@ -50,10 +50,9 @@ const Hero = () => {
 
   useEffect(() => {
     if (dataLoaded) {
-      // Ensure isLoading is true for a minimum of 3 seconds
       const minAnimationTime = setTimeout(() => {
         setIsLoading(false);
-      }, 3000); // Minimum 3 seconds of loading animation
+      }, 3000);
 
       return () => clearTimeout(minAnimationTime);
     }
@@ -61,12 +60,10 @@ const Hero = () => {
 
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-background">
-      {/* Parallax Background - Low Opacity */}
       <div className="absolute inset-0 z-0 opacity-20">
         <ParallaxBackground />
       </div>
 
-      {/* Liquid Ether Background */}
       <div className="absolute inset-0 z-0">
         <LiquidEther
             colors={['#1a0b2e', '#311b92', '#4a148c', '#000000']}
@@ -80,7 +77,6 @@ const Hero = () => {
         />
       </div>
 
-      {/* Orbit Images - Dynamic speed based on loading state */}
       <div className="absolute inset-0 z-[10] pointer-events-none opacity-80 scale-110 flex items-center justify-center">
         <div className="w-full max-w-7xl aspect-square md:aspect-video">
            <OrbitImages
@@ -89,10 +85,10 @@ const Hero = () => {
               radiusX={600}
               radiusY={150}
               rotation={-10}
-              initialDuration={0.5} // Initial fast spin duration
-              finalDuration={30}   // Final slow spin duration
-              durationTransition={2} // Duration for the speed transition
-              isLoading={isLoading} // Pass isLoading state
+              initialSpeed={3.0}
+              finalSpeed={0.05}
+              transitionDuration={3}
+              isLoading={isLoading}
               itemSize={120}
               responsive={true}
               radius={250}
@@ -104,11 +100,9 @@ const Hero = () => {
         </div>
       </div>
 
-      {/* Gradients for blending */}
       <div className="absolute top-0 left-0 right-0 h-40 bg-gradient-to-b from-background via-background/80 to-transparent z-[1] pointer-events-none" />
       <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-background via-background/80 to-transparent z-[1] pointer-events-none" />
 
-      {/* Loading Text */}
       {isLoading && (
         <motion.h1
           initial={{ opacity: 0, y: 20 }}
@@ -121,8 +115,7 @@ const Hero = () => {
         </motion.h1>
       )}
 
-      {/* Content */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: isLoading ? 0 : 1, y: isLoading ? 30 : 0 }}
         transition={{ duration: 1, ease: "easeOut", delay: isLoading ? 0 : 0.2 }}
@@ -133,7 +126,6 @@ const Hero = () => {
         </h1>
       </motion.div>
 
-      {/* Card Swap - Bottom Right */}
       <CardSwap
         width={280}
         height={340}
