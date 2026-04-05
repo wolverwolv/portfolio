@@ -27,8 +27,8 @@ mongoClient.connect()
 app.get('/api/reviews', async (req, res) => {
   try {
     if (!db) return res.status(503).json({ error: 'DB connecting...' });
-    const limit = parseInt(req.query._limit as string) || 0;
-    const skip = parseInt(req.query._skip as string) || 0;
+    const limit = parseInt(req.query._limit) || 0;
+    const skip = parseInt(req.query._skip) || 0;
 
     let query = db.collection('reviews').find().sort({ createdAt: -1 });
 
@@ -47,8 +47,8 @@ app.get('/api/reviews', async (req, res) => {
 app.get('/api/projects', async (req, res) => {
   try {
     if (!db) return res.status(503).json({ error: 'DB connecting...' });
-    const limit = parseInt(req.query._limit as string) || 0;
-    const skip = parseInt(req.query._skip as string) || 0;
+    const limit = parseInt(req.query._limit) || 0;
+    const skip = parseInt(req.query._skip) || 0;
 
     let query = db.collection('projects').find().sort({ createdAt: -1 });
 
