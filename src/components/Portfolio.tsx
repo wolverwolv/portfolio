@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from "framer-motion";
-import { X, Sparkles, ExternalLink, ImageOff, Loader2, Maximize2 } from "lucide-react";
+import { X, Sparkles, ImageOff, Loader2, Maximize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 // Import images (local assets)
@@ -62,9 +62,30 @@ const ImageViewer = ({ src, onClose }: { src: string; onClose: () => void }) => 
   );
 };
 
+// Lazy Loading Image Component using IntersectionObserver
 export const ImageWithFallback = ({ src, alt, className, ...props }: any) => {
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isVisible, setIsVisible] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.01, rootMargin: '200px' } // Start loading 200px before it enters viewport
+    );
+
+    if (containerRef.current) {
+      observer.observe(containerRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [src]);
 
   if (error || !src) {
     return (
@@ -76,23 +97,26 @@ export const ImageWithFallback = ({ src, alt, className, ...props }: any) => {
   }
 
   return (
-    <div className={`relative overflow-hidden ${className}`}>
+    <div ref={containerRef} className={`relative overflow-hidden ${className} bg-secondary/10`}>
       {loading && (
-        <div className="absolute inset-0 bg-secondary/30 flex items-center justify-center">
-          <Loader2 className="animate-spin text-accent/50" size={24} />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <Loader2 className="animate-spin text-accent/30" size={24} />
         </div>
       )}
-      <img
-        src={src}
-        alt={alt}
-        className={`${className} ${loading ? 'opacity-0 scale-105' : 'opacity-100 scale-100'} transition-all duration-500 ease-out`}
-        onLoad={() => setLoading(false)}
-        onError={() => {
-          console.error(`Failed to load image: ${typeof src === 'string' ? src.substring(0, 50) : 'object'}`);
-          setError(true);
-        }}
-        {...props}
-      />
+      {isVisible && (
+        <img
+          src={src}
+          alt={alt}
+          loading="lazy"
+          className={`${className} ${loading ? 'opacity-0' : 'opacity-100'} transition-opacity duration-500 ease-in-out`}
+          onLoad={() => setLoading(false)}
+          onError={() => {
+            console.error(`Failed to load image: ${typeof src === 'string' ? src.substring(0, 50) : 'object'}`);
+            setError(true);
+          }}
+          {...props}
+        />
+      )}
     </div>
   );
 };

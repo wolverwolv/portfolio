@@ -1,4 +1,4 @@
-import { useEffect, useState, useContext } from "react";
+import { useEffect, useState, useContext, useMemo } from "react";
 import LiquidEther from "./LiquidEther";
 import { motion } from "framer-motion";
 import ParallaxBackground from "./ParallaxBackground";
@@ -20,10 +20,13 @@ const Hero = () => {
   const [orbitImages, setOrbitImages] = useState<string[]>([halo1, npc, gui, crate, plug, mm]);
   const [dataLoaded, setDataLoaded] = useState(false);
 
+  // Memoize colors for LiquidEther
+  const liquidColors = useMemo(() => ['#1a0b2e', '#311b92', '#4a148c', '#000000'], []);
+
   useEffect(() => {
-    const fetchRandomImages = async () => {
+    const fetchEssentialData = async () => {
       try {
-        // Only fetch a small number of projects for the hero orbit
+        // Fetch projects for orbit images first (essential)
         const projectsRes = await fetch(`${API_URL}/api/projects?_limit=6&t=${Date.now()}`);
         const projectsData = await projectsRes.json();
 
@@ -39,46 +42,51 @@ const Hero = () => {
             });
           }
         }
+        // Signal essential data is ready
         setDataLoaded(true);
       } catch (error) {
-        console.error("Failed to fetch orbit images:", error);
+        console.error("Failed to fetch orbit data:", error);
         setDataLoaded(true);
       }
     };
-    fetchRandomImages();
+    fetchEssentialData();
   }, []);
 
   useEffect(() => {
     if (dataLoaded) {
-      const minAnimationTime = setTimeout(() => {
+      // Faster loader disappearance
+      const timer = setTimeout(() => {
         setIsLoading(false);
-      }, 3000);
-
-      return () => clearTimeout(minAnimationTime);
+      }, 1200);
+      return () => clearTimeout(timer);
     }
   }, [dataLoaded, setIsLoading]);
 
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-background">
+      {/* Parallax Background - Low Opacity */}
       <div className="absolute inset-0 z-0 opacity-20">
         <ParallaxBackground />
       </div>
 
+      {/* Liquid Ether Background - RE-ENABLED */}
       <div className="absolute inset-0 z-0">
         <LiquidEther
-            colors={['#1a0b2e', '#311b92', '#4a148c', '#000000']}
-            resolution={0.35}
+            colors={liquidColors}
+            resolution={0.2}
             mouseForce={20}
             isViscous={true}
             viscous={40}
-            iterationsViscous={16}
-            iterationsPoisson={16}
+            iterationsViscous={12}
+            iterationsPoisson={12}
             autoSpeed={0.2}
+            paused={isLoading}
         />
       </div>
 
-      <div className="absolute inset-0 z-[10] pointer-events-none opacity-80 scale-110 flex items-center justify-center">
-        <div className="w-full max-w-7xl aspect-square md:aspect-video">
+      {/* Orbit Images - Essential for initial view */}
+      <div className="absolute inset-0 z-[10] pointer-events-none opacity-80 flex items-center justify-center">
+        <div className="w-full max-w-7xl aspect-square md:aspect-video scale-110">
            <OrbitImages
               images={orbitImages}
               shape="ellipse"
@@ -100,6 +108,7 @@ const Hero = () => {
         </div>
       </div>
 
+      {/* Gradients for blending */}
       <div className="absolute top-0 left-0 right-0 h-40 bg-gradient-to-b from-background via-background/80 to-transparent z-[1] pointer-events-none" />
       <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-background via-background/80 to-transparent z-[1] pointer-events-none" />
 
