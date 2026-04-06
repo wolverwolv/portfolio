@@ -55,7 +55,6 @@ const ImageViewer = ({ src, onClose }: { src: string; onClose: () => void }) => 
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
         src={src}
-        alt="Full screen view"
         className="max-w-full max-h-full object-contain rounded-lg shadow-2xl cursor-target"
         onClick={(e) => e.stopPropagation()}
       />
@@ -76,8 +75,6 @@ export const ImageWithFallback = ({ src, alt, className, ...props }: any) => {
     );
   }
 
-  const finalSrc = src;
-
   return (
     <div className={`relative overflow-hidden ${className}`}>
       {loading && (
@@ -86,18 +83,21 @@ export const ImageWithFallback = ({ src, alt, className, ...props }: any) => {
         </div>
       )}
       <img
-        src={finalSrc}
+        src={src}
         alt={alt}
         className={`${className} ${loading ? 'opacity-0 scale-105' : 'opacity-100 scale-100'} transition-all duration-500 ease-out`}
         onLoad={() => setLoading(false)}
-        onError={() => setError(true)}
+        onError={() => {
+          console.error(`Failed to load image: ${typeof src === 'string' ? src.substring(0, 50) : 'object'}`);
+          setError(true);
+        }}
         {...props}
       />
     </div>
   );
 };
 
-const TiltCard = ({ project, onClick }: { project: Project; onClick: () => void }) => {
+const TiltCard = ({ project, onClick, isFetching }: { project: Project; onClick: () => void; isFetching: boolean }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const x = useMotionValue(0);
   const y = useMotionValue(0);
@@ -126,41 +126,29 @@ const TiltCard = ({ project, onClick }: { project: Project; onClick: () => void 
       onMouseMove={handleMouseMove}
       onMouseLeave={() => { x.set(0); y.set(0); }}
       onClick={onClick}
-      role="button"
-      aria-label={`View details for ${project.title}`}
     >
       <motion.div
         className="relative h-full bg-gradient-to-br from-card via-card to-card/80 border border-border/40 rounded-2xl overflow-hidden flex flex-col shadow-lg"
         style={{ rotateX, rotateY, filter: useTransform(brightness, (b) => `brightness(${b})`) }}
       >
-        <motion.div
-          className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
-          style={{
-            background: useTransform(
-              [mouseXSpring, mouseYSpring],
-              ([lx, ly]) => `radial-gradient(600px circle at ${(Number(lx)+0.5)*100}% ${(Number(ly)+0.5)*100}%, rgba(255,255,255,0.1), transparent 40%)`
-            ),
-          }}
-        />
-
         <div className="relative h-56 overflow-hidden bg-secondary/20">
-          {project.images && project.images[0] ? (
-            <ImageWithFallback src={project.images[0]} alt={project.title} className="w-full h-full object-cover" style={{ transformStyle: "preserve-3d", translateZ: 20 }} />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center"><ImageOff className="text-muted-foreground/30" size={32} /></div>
+          <ImageWithFallback src={project.images?.[0]} alt={project.title} className="w-full h-full object-cover" />
+          {isFetching && (
+            <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-20 backdrop-blur-sm">
+              <Loader2 className="animate-spin text-accent" size={32} />
+            </div>
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-card via-card/20 to-transparent" />
-          <motion.span className="absolute top-3 left-3 text-[10px] font-bold text-accent bg-background/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-accent/20 uppercase tracking-tighter" style={{ translateZ: 40 }}>{project.type}</motion.span>
+          <span className="absolute top-3 left-3 text-[10px] font-bold text-accent bg-background/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-accent/20 uppercase">{project.type}</span>
         </div>
-
-        <div className="p-5 flex-grow flex flex-col" style={{ transformStyle: "preserve-3d" }}>
-          <motion.h3 className="text-xl font-bold mb-2 group-hover:text-accent transition-colors duration-300" style={{ translateZ: 30 }}>{project.title}</motion.h3>
-          <motion.p className="text-muted-foreground text-sm leading-relaxed mb-4 line-clamp-2" style={{ translateZ: 20 }}>{project.description}</motion.p>
-          <motion.div className="flex flex-wrap gap-2 mt-auto" style={{ translateZ: 25 }}>
+        <div className="p-5 flex-grow flex flex-col">
+          <h3 className="text-xl font-bold mb-2 group-hover:text-accent transition-colors">{project.title}</h3>
+          <p className="text-muted-foreground text-sm leading-relaxed mb-4 line-clamp-2">{project.description}</p>
+          <div className="flex flex-wrap gap-2 mt-auto">
             {project.stats.slice(0, 2).map((s) => (
               <span key={s} className="text-[10px] px-3 py-1 bg-background/60 border border-border/50 rounded-full text-muted-foreground uppercase font-semibold">{s}</span>
             ))}
-          </motion.div>
+          </div>
         </div>
       </motion.div>
     </motion.div>
@@ -182,6 +170,7 @@ const Portfolio = () => {
   const [projects, setProjects] = useState<Project[]>(initialProjects);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [fetchingDetailsId, setFetchingDetailsId] = useState<string | null>(null);
 
   const fetchProjects = async (skip: number) => {
     setLoadingMore(true);
@@ -189,9 +178,9 @@ const Portfolio = () => {
       const res = await fetch(`${API_URL}/api/projects?_limit=${PROJECTS_PER_LOAD}&_skip=${skip}&t=${Date.now()}`);
       const data = await res.json();
       if (Array.isArray(data)) {
-        if (skip === 0) { // Initial load
+        if (skip === 0) {
           setProjects([...data, ...initialProjects]);
-        } else { // Load more
+        } else {
           setProjects(prev => [...prev, ...data]);
         }
         setHasMore(data.length === PROJECTS_PER_LOAD);
@@ -207,21 +196,41 @@ const Portfolio = () => {
   };
 
   useEffect(() => {
-    fetchProjects(0); // Initial fetch
+    fetchProjects(0);
   }, []);
 
   const handleLoadMore = () => {
-    fetchProjects(projects.length - initialProjects.length); // Skip already loaded DB projects
+    fetchProjects(projects.length - initialProjects.length);
   };
 
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [viewerImage, setViewerImage] = useState<string | null>(null);
 
-  const openModal = (p: Project) => {
-    setSelectedProject(p);
-    setModalOpen(true);
-    document.body.style.overflow = "hidden";
+  const openProjectDetails = async (p: Project) => {
+    if (!p._id) { // For local assets
+      setSelectedProject(p);
+      setModalOpen(true);
+      document.body.style.overflow = "hidden";
+      return;
+    }
+
+    setFetchingDetailsId(p._id);
+    try {
+      const res = await fetch(`${API_URL}/api/projects/${p._id}`);
+      const fullProject = await res.json();
+      setSelectedProject(fullProject);
+      setModalOpen(true);
+      document.body.style.overflow = "hidden";
+    } catch (error) {
+      console.error("Failed to fetch project details:", error);
+      // Fallback to what we already have
+      setSelectedProject(p);
+      setModalOpen(true);
+      document.body.style.overflow = "hidden";
+    } finally {
+      setFetchingDetailsId(null);
+    }
   };
 
   const closeModal = () => {
@@ -237,7 +246,14 @@ const Portfolio = () => {
           <h2 className="text-6xl md:text-8xl font-bold">Recent Work</h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto auto-rows-fr">
-          {projects.map((p, i) => ( <TiltCard key={p._id || i} project={p} onClick={() => openModal(p)} /> ))}
+          {projects.map((p, i) => (
+            <TiltCard
+              key={p._id || i}
+              project={p}
+              onClick={() => openProjectDetails(p)}
+              isFetching={fetchingDetailsId === p._id}
+            />
+          ))}
         </div>
         {hasMore && (
           <div className="text-center mt-16">
